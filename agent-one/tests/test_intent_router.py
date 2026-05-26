@@ -14,6 +14,12 @@ def _make_llm_response(content: str) -> MagicMock:
     return msg
 
 
+def _mock_llm(response_text: str) -> MagicMock:
+    mock = MagicMock()
+    mock.invoke.return_value = _make_llm_response(response_text)
+    return mock
+
+
 @pytest.mark.integration
 def test_intent_router_classifies_website_qa():
     state = {
@@ -23,8 +29,7 @@ def test_intent_router_classifies_website_qa():
         "retrieved_chunks": [],
         "citations": [],
     }
-    with patch("app.graph.nodes.intent_router._llm") as mock_llm:
-        mock_llm.invoke.return_value = _make_llm_response("website_qa")
+    with patch("app.graph.nodes.intent_router._get_llm", return_value=_mock_llm("website_qa")):
         result = route_intent(state)
     assert result["intent"] == "website_qa"
 
@@ -38,8 +43,7 @@ def test_intent_router_classifies_sql_qa():
         "retrieved_chunks": [],
         "citations": [],
     }
-    with patch("app.graph.nodes.intent_router._llm") as mock_llm:
-        mock_llm.invoke.return_value = _make_llm_response("sql_qa")
+    with patch("app.graph.nodes.intent_router._get_llm", return_value=_mock_llm("sql_qa")):
         result = route_intent(state)
     assert result["intent"] == "sql_qa"
 
@@ -53,7 +57,6 @@ def test_intent_router_classifies_unsupported():
         "retrieved_chunks": [],
         "citations": [],
     }
-    with patch("app.graph.nodes.intent_router._llm") as mock_llm:
-        mock_llm.invoke.return_value = _make_llm_response("unsupported")
+    with patch("app.graph.nodes.intent_router._get_llm", return_value=_mock_llm("unsupported")):
         result = route_intent(state)
     assert result["intent"] == "unsupported"
