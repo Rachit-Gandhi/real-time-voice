@@ -22,6 +22,7 @@ def _isolated_pipeline(tmp_path, monkeypatch):
     _ret.reset_default_pipeline()
 
 
+
 @pytest.fixture
 def client():
     from app.main import app

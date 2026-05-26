@@ -1,7 +1,9 @@
 """Voice session routes."""
-import uuid
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
+from apps.api.agents.agent_one_client import AgentInvokeError
+from apps.api.realtime.openai_client import RealtimeSessionError
+from apps.api.realtime.tool_router import ToolRouter
 
 router = APIRouter(prefix="/voice", tags=["voice"])
 
@@ -12,20 +14,59 @@ class CreateSessionRequest(BaseModel):
 
 
 @router.post("/session")
-def create_session(body: CreateSessionRequest, request: Request):
-    session_id = str(uuid.uuid4())
-    request.app.state.sessions[session_id] = {
-        "session_id": session_id,
-        "agent_id": body.agent_id,
-        "status": "active",
-    }
-    return request.app.state.sessions[session_id]
+async def create_session(body: CreateSessionRequest, request: Request):
+    try:
+        session = await request.app.state.session_manager.create(
+            agent_id=body.agent_id,
+            user_id=body.user_id,
+        )
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except RealtimeSessionError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+    return session
+
+
+@router.get("/session/{session_id}/status")
+def get_session_status(session_id: str, request: Request):
+    try:
+        return request.app.state.session_manager.get(session_id)
+    except KeyError:
+        raise HTTPException(status_code=404, detail="Session not found")
 
 
 @router.post("/session/{session_id}/end")
 def end_session(session_id: str, request: Request):
-    sessions = request.app.state.sessions
-    if session_id not in sessions:
+    try:
+        return request.app.state.session_manager.end(session_id)
+    except KeyError:
         raise HTTPException(status_code=404, detail="Session not found")
-    sessions[session_id]["status"] = "ended"
-    return {"session_id": session_id, "status": "ended"}
+
+
+class ToolCallRequest(BaseModel):
+    tool_name: str
+    args: dict
+
+
+@router.post("/session/{session_id}/tool-call")
+async def tool_call(session_id: str, body: ToolCallRequest, request: Request):
+    try:
+        session = request.app.state.session_manager.get(session_id)
+    except KeyError:
+        raise HTTPException(status_code=404, detail="Session not found")
+    agent_invoke_fn = request.app.state.agent_invoke_fn
+    router_instance = ToolRouter(agent_invoke_fn=agent_invoke_fn)
+    args = {
+        "agent_id": body.args.get("agent_id") or session["agent_id"],
+        "user_message": body.args.get("user_message") or body.args.get("message"),
+        "session_id": body.args.get("session_id") or session_id,
+        "user_id": body.args.get("user_id") or session["user_id"],
+        "context": body.args.get("context"),
+    }
+    try:
+        result = await router_instance.dispatch(tool_name=body.tool_name, args=args)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except AgentInvokeError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+    return result
