@@ -36,3 +36,33 @@ def test_end_voice_session():
     data = end_resp.json()
     assert data["session_id"] == session_id
     assert data["status"] == "ended"
+
+
+def test_get_session_status():
+    """GET /voice/session/{session_id}/status returns full session object."""
+    from apps.api.main import app
+
+    client = TestClient(app)
+    create_resp = client.post(
+        "/voice/session",
+        json={"agent_id": "agent_one", "user_id": "user_456"},
+    )
+    session_id = create_resp.json()["session_id"]
+
+    status_resp = client.get(f"/voice/session/{session_id}/status")
+    assert status_resp.status_code == 200
+    data = status_resp.json()
+    assert data["session_id"] == session_id
+    assert data["agent_id"] == "agent_one"
+    assert data["user_id"] == "user_456"
+    assert data["status"] == "active"
+    assert "started_at" in data
+
+
+def test_get_session_status_not_found():
+    """GET /voice/session/{session_id}/status returns 404 for unknown session."""
+    from apps.api.main import app
+
+    client = TestClient(app)
+    resp = client.get("/voice/session/does-not-exist/status")
+    assert resp.status_code == 404
