@@ -1,4 +1,3 @@
-from unittest.mock import patch, MagicMock
 from app.graph.nodes.answer_composer import answer_composer
 
 _MOCK_CHUNKS = [
@@ -7,51 +6,52 @@ _MOCK_CHUNKS = [
         "url": "https://example.com/services",
         "title": "Services",
         "content": "We offer consulting and software development.",
+        "score": 0.8,
     },
 ]
 
 
-def _make_llm_response(text: str) -> MagicMock:
-    mock_resp = MagicMock()
-    mock_resp.content = text
-    return mock_resp
+def test_answer_composer_returns_answer_and_speak_from_chunks():
+    state = {
+        "user_message": "What services do you offer?",
+        "thread_id": "t1",
+        "retrieved_chunks": _MOCK_CHUNKS,
+        "citations": [],
+        "retrieval_score": 0.8,
+    }
+    result = answer_composer(state)
 
-
-def test_answer_composer_returns_answer_and_speak():
-    json_reply = '{"answer": "We offer consulting.", "speak": "We offer consulting."}'
-    with patch("app.graph.nodes.answer_composer.ChatOpenAI") as MockLLM:
-        MockLLM.return_value.invoke.return_value = _make_llm_response(json_reply)
-        state = {
-            "user_message": "What services do you offer?",
-            "thread_id": "t1",
-            "retrieved_chunks": _MOCK_CHUNKS,
-            "citations": [],
-        }
-        result = answer_composer(state)
-
-    assert isinstance(result["final_answer"], str) and result["final_answer"]
+    assert "consulting" in result["final_answer"].lower()
     assert isinstance(result["speak"], str) and result["speak"]
     assert isinstance(result["citations"], list)
     assert result["citations"][0]["url"] == "https://example.com/services"
+    assert result["sources"][0]["type"] == "website"
 
 
-def test_answer_composer_handles_non_json_response():
-    plain_reply = "We offer consulting and software development."
-    with patch("app.graph.nodes.answer_composer.ChatOpenAI") as MockLLM:
-        MockLLM.return_value.invoke.return_value = _make_llm_response(plain_reply)
-        state = {
-            "user_message": "What services?",
-            "thread_id": "t2",
-            "retrieved_chunks": _MOCK_CHUNKS,
-            "citations": [],
-        }
-        result = answer_composer(state)
+def test_answer_composer_combines_api_and_website_data():
+    state = {
+        "user_message": "What is the refund policy and my order status?",
+        "thread_id": "t2",
+        "retrieved_chunks": _MOCK_CHUNKS,
+        "api_result": {
+            "tool": "get_order_status",
+            "data": {
+                "order_id": "ord_1001",
+                "status": "in transit",
+                "eta": "2026-05-29",
+                "latest_note": "Package left the regional facility.",
+            },
+        },
+        "citations": [],
+    }
+    result = answer_composer(state)
 
-    assert result["final_answer"] == plain_reply
-    assert result["speak"] == plain_reply
+    assert "consulting" in result["final_answer"].lower()
+    assert "ord_1001" in result["final_answer"]
+    assert result["sources"][-1] == {"type": "api", "tool": "get_order_status"}
 
 
-def test_answer_composer_no_chunks_returns_fallback():
+def test_answer_composer_no_data_returns_fallback():
     state = {
         "user_message": "What services?",
         "thread_id": "t3",

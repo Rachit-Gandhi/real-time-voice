@@ -1,36 +1,18 @@
 from app.graph.state import AgentOneState
-
-_MOCK_CHUNKS = [
-    {
-        "chunk_id": "c1",
-        "url": "https://example.com/services",
-        "title": "Services",
-        "content": (
-            "We offer consulting, custom software development, and 24/7 technical support. "
-            "Our team specialises in cloud-native architectures and AI-powered solutions."
-        ),
-    },
-    {
-        "chunk_id": "c2",
-        "url": "https://example.com/pricing",
-        "title": "Pricing",
-        "content": (
-            "Starter plan: $49/month — up to 5 users, core features. "
-            "Professional plan: $149/month — up to 25 users, priority support. "
-            "Enterprise: custom pricing with SLA guarantees."
-        ),
-    },
-    {
-        "chunk_id": "c3",
-        "url": "https://example.com/refund-policy",
-        "title": "Refund Policy",
-        "content": (
-            "We offer a 30-day money-back guarantee on all plans. "
-            "Refunds are processed within 5-7 business days to the original payment method."
-        ),
-    },
-]
+from app.retrieval import DEFAULT_WEBSITE_ID, get_default_pipeline
 
 
 def retrieve_website(state: AgentOneState) -> AgentOneState:
-    return {**state, "retrieved_chunks": _MOCK_CHUNKS}
+    context = state.get("context") or {}
+    website_id = state.get("website_id") or context.get("website_id") or DEFAULT_WEBSITE_ID
+    chunks = get_default_pipeline().search(
+        state.get("user_message", ""),
+        website_id=website_id,
+        top_k=int(context.get("top_k", 4)),
+    )
+    return {
+        **state,
+        "website_id": website_id,
+        "retrieved_chunks": [chunk.as_dict() for chunk in chunks],
+        "retrieval_score": chunks[0].score if chunks else 0.0,
+    }

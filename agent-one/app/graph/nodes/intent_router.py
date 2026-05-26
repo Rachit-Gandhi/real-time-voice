@@ -1,3 +1,5 @@
+import os
+
 from langchain_openai import ChatOpenAI
 from app.graph.state import AgentOneState
 
@@ -12,11 +14,65 @@ Reply with ONLY the category name, nothing else."""
 
 
 def route_intent(state: AgentOneState) -> AgentOneState:
+    intent = classify_intent(state.get("user_message", ""))
+    if intent:
+        return {**state, "intent": intent}
+
+    if not os.getenv("OPENAI_API_KEY"):
+        return {**state, "intent": "website_qa"}
+
     llm = ChatOpenAI(model="gpt-4o-mini", temperature=0)
-    message = state["user_message"]
+    message = state.get("user_message", "")
     response = llm.invoke([
         {"role": "system", "content": _SYSTEM},
         {"role": "user", "content": message},
     ])
     intent = response.content.strip().lower()
     return {**state, "intent": intent}
+
+
+def classify_intent(message: str) -> str | None:
+    text = message.lower()
+    api_terms = (
+        "order",
+        "customer",
+        "account",
+        "invoice",
+        "appointment",
+        "booking",
+        "book ",
+        "slot",
+        "refund status",
+        "my refund",
+        "my plan",
+        "my subscription",
+    )
+    website_terms = (
+        "service",
+        "pricing",
+        "price",
+        "plan",
+        "refund policy",
+        "policy",
+        "website",
+        "offer",
+        "support",
+        "guarantee",
+        "sla",
+    )
+    unsupported_terms = ("weather", "sports", "joke", "recipe", "movie")
+
+    has_api = any(term in text for term in api_terms)
+    has_website = any(term in text for term in website_terms)
+
+    if has_api and has_website:
+        return "hybrid"
+    if has_api:
+        return "sql_qa"
+    if has_website:
+        return "website_qa"
+    if any(term in text for term in unsupported_terms):
+        return "unsupported"
+    if len(text.split()) <= 2:
+        return "clarification"
+    return None
