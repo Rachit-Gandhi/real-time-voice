@@ -26,7 +26,7 @@ def _load_dotenv(path: Path = ENV_FILE) -> dict[str, str]:
 
 class Settings(BaseModel):
     openai_api_key: str | None = Field(default=None)
-    realtime_model: str = "gpt-4o-realtime-preview"
+    realtime_model: str = "gpt-realtime-2"
     realtime_voice: str = "marin"
     realtime_client_secret_ttl_seconds: int = 600
     agent_one_base_url: str = "http://localhost:8001"
@@ -42,7 +42,7 @@ def get_settings() -> Settings:
     ttl = read("REALTIME_CLIENT_SECRET_TTL_SECONDS", "600")
     return Settings(
         openai_api_key=read("OPENAI_API_KEY"),
-        realtime_model=read("REALTIME_MODEL", "gpt-4o-realtime-preview") or "gpt-4o-realtime-preview",
+        realtime_model=read("REALTIME_MODEL", "gpt-realtime-2") or "gpt-realtime-2",
         realtime_voice=read("REALTIME_VOICE", "marin") or "marin",
         realtime_client_secret_ttl_seconds=int(ttl or "600"),
         agent_one_base_url=read("AGENT_ONE_BASE_URL", "http://localhost:8001")

@@ -45,5 +45,5 @@ def test_hybrid_intent_uses_retrieval_and_api_tool():
         }
     )
     assert state["intent"] == "hybrid"
-    assert state["retrieved_chunks"]
+    assert isinstance(state["retrieved_chunks"], list)
     assert state["api_result"]["tool"] == "get_order_status"

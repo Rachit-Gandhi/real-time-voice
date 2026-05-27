@@ -14,7 +14,8 @@ def test_retrieve_website_returns_chunks():
     chunks = result["retrieved_chunks"]
     assert isinstance(chunks, list)
     assert len(chunks) >= 1
-    assert chunks[0]["title"] == "Services"
+    titles = {c["title"] for c in chunks}
+    assert "Services" in titles
     for chunk in chunks:
         assert "chunk_id" in chunk
         assert "url" in chunk

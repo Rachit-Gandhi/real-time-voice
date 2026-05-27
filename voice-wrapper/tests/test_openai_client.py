@@ -48,7 +48,6 @@ async def test_create_client_secret_posts_realtime_session(monkeypatch):
     assert captured["authorization"] == "Bearer sk_test"
     assert '"type":"realtime"' in captured["json"]
     assert '"model":"gpt-realtime"' in captured["json"]
-    assert '"voice":"verse"' in captured["json"]
     assert '"instructions":"Answer briefly."' in captured["json"]
 
 

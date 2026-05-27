@@ -20,11 +20,14 @@ class SessionManager:
                 instructions=agent_config.instructions,
                 tools=agent_config.tools,
             )
-            client_secret = realtime_session.get("value") or (
-                realtime_session.get("session", {})
-                .get("client_secret", {})
-                .get("value")
-            )
+            # GA client_secrets returns client_secret as string or {value, expires_at}
+            cs = realtime_session.get("client_secret")
+            if isinstance(cs, dict):
+                client_secret = cs.get("value")
+            elif isinstance(cs, str):
+                client_secret = cs
+            else:
+                client_secret = realtime_session.get("value")
 
         session_id = str(uuid.uuid4())
         session = {

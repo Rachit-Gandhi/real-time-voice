@@ -234,31 +234,4 @@ def stable_chunk_id(website_id: str, url: str, index: int) -> str:
 
 
 def default_documents() -> list[WebsiteDocument]:
-    return [
-        WebsiteDocument(
-            url="https://example.com/services",
-            title="Services",
-            content=(
-                "We offer consulting, custom software development, and 24/7 technical support. "
-                "Our team specializes in cloud-native architectures, integration work, and "
-                "AI-powered business solutions."
-            ),
-        ),
-        WebsiteDocument(
-            url="https://example.com/pricing",
-            title="Pricing",
-            content=(
-                "The Starter plan is 49 dollars per month and supports up to 5 users with core "
-                "features. The Professional plan is 149 dollars per month and supports up to 25 "
-                "users with priority support. Enterprise plans use custom pricing with SLA guarantees."
-            ),
-        ),
-        WebsiteDocument(
-            url="https://example.com/refund-policy",
-            title="Refund Policy",
-            content=(
-                "All plans include a 30-day money-back guarantee. Refunds are processed within "
-                "5 to 7 business days to the original payment method after approval."
-            ),
-        ),
-    ]
+    return []

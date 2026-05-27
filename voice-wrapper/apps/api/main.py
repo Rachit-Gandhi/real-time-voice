@@ -1,5 +1,8 @@
 """FastAPI application entry point."""
+import pathlib
 from fastapi import FastAPI
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 from apps.api.agents.agent_one_client import AgentOneClient
 from apps.api.agents.registry import AgentRegistry
 from apps.api.config import get_settings
@@ -7,6 +10,7 @@ from apps.api.realtime.openai_client import OpenAIRealtimeClient
 from apps.api.routes.voice import router as voice_router
 from apps.api.realtime.session_manager import SessionManager
 
+_STATIC = pathlib.Path(__file__).parent / "static"
 
 app = FastAPI(title="Voice Wrapper API")
 _settings = get_settings()
@@ -22,3 +26,9 @@ app.state.agent_registry = _registry
 app.state.sessions = _session_manager._sessions
 app.state.agent_invoke_fn = _agent_one_client.invoke
 app.include_router(voice_router)
+app.mount("/static", StaticFiles(directory=_STATIC), name="static")
+
+
+@app.get("/", include_in_schema=False)
+def index():
+    return FileResponse(_STATIC / "index.html")
