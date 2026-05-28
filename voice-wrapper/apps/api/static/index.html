@@ -3,247 +3,642 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Voice Agent Console</title>
+  <title>ARIA — Voice Agent Console</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@400;700&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;1,9..40,300&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
   <style>
     :root {
-      --bg:        #0f1117;
-      --surface:   #1e2130;
-      --border:    #2d3348;
-      --text:      #e4e8f0;
-      --muted:     #7a84a0;
-      --accent:    #5b78f5;
-      --user-bg:   #1a2a3a;
-      --ai-bg:     #1a2a1a;
+      --bg:        #07090e;
+      --surface:   #0c111b;
+      --surface-2: #101622;
+      --border:    #192030;
+      --text:      #d8e6f5;
+      --muted:     #3e5270;
+      --accent:    #e8533a;
+      --accent-glow: rgba(232,83,58,0.18);
+      --success:   #3dd68c;
+      --success-glow: rgba(61,214,140,0.12);
+      --warn:      #f0b93a;
       --error:     #e05252;
-      --success:   #4cbb7f;
-      --warn:      #f0a84a;
+      --user-bg:   #0b1722;
+      --ai-bg:     #0b1a10;
+      --tool-bg:   #0f140a;
     }
 
-    * { box-sizing: border-box; margin: 0; padding: 0; }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html { height: 100%; }
 
     body {
       background: var(--bg);
       color: var(--text);
-      font-family: 'Segoe UI', system-ui, sans-serif;
+      font-family: 'DM Sans', system-ui, sans-serif;
       height: 100dvh;
       display: flex;
       flex-direction: column;
       overflow: hidden;
+      font-size: 14px;
+      line-height: 1.5;
     }
 
-    /* ── Header ── */
+    /* Ambient background glow */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background:
+        radial-gradient(ellipse 90% 55% at 50% -5%,  rgba(232,83,58,0.07)  0%, transparent 65%),
+        radial-gradient(ellipse 50% 40% at 95% 100%, rgba(61,214,140,0.05) 0%, transparent 55%),
+        radial-gradient(ellipse 40% 35% at 0%  80%,  rgba(240,185,58,0.03) 0%, transparent 50%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* ── Stack everything above the pseudo ── */
+    header, #error-banner, #controls, #voice-strip, #transcript-section, #tool-log {
+      position: relative;
+      z-index: 1;
+    }
+
+    /* ─────────── HEADER ─────────── */
     header {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 12px 20px;
-      background: var(--surface);
+      padding: 14px 24px;
+      background: rgba(12,17,27,0.8);
       border-bottom: 1px solid var(--border);
+      backdrop-filter: blur(8px);
       flex-shrink: 0;
     }
-    header h1 { font-size: 16px; font-weight: 600; letter-spacing: 0.3px; }
+
+    .brand {
+      display: flex;
+      align-items: baseline;
+      gap: 10px;
+    }
+    .brand-name {
+      font-family: 'Unbounded', sans-serif;
+      font-size: 14px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      color: var(--text);
+    }
+    .brand-sep {
+      color: var(--border);
+      font-family: 'Fira Code', monospace;
+      font-size: 11px;
+    }
+    .brand-sub {
+      font-family: 'Fira Code', monospace;
+      font-size: 10px;
+      color: var(--muted);
+      letter-spacing: 0.05em;
+    }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+    }
+
+    #session-timer {
+      font-family: 'Fira Code', monospace;
+      font-size: 12px;
+      color: var(--muted);
+      min-width: 38px;
+      text-align: right;
+      letter-spacing: 0.05em;
+    }
 
     .status-pill {
       display: flex;
       align-items: center;
       gap: 7px;
-      font-size: 13px;
+      font-family: 'Fira Code', monospace;
+      font-size: 11px;
       color: var(--muted);
     }
     .dot {
-      width: 9px; height: 9px;
+      width: 8px;
+      height: 8px;
       border-radius: 50%;
       flex-shrink: 0;
     }
     .dot.disconnected { background: var(--muted); }
-    .dot.connecting   { background: var(--warn); animation: pulse 1s infinite; }
-    .dot.connected    { background: var(--success); }
+    .dot.connecting   { background: var(--warn); animation: dot-pulse 0.9s ease-in-out infinite; }
+    .dot.connected    { background: var(--success); box-shadow: 0 0 8px rgba(61,214,140,0.5); }
     .dot.error        { background: var(--error); }
-    @keyframes pulse { 0%,100% { opacity:1 } 50% { opacity:0.35 } }
 
-    /* ── Error banner ── */
+    @keyframes dot-pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50%      { opacity: 0.3; transform: scale(0.8); }
+    }
+
+    /* ─────────── ERROR BANNER ─────────── */
     #error-banner {
       display: none;
-      background: #3a1a1a;
-      border-bottom: 1px solid var(--error);
-      color: #f08080;
-      font-size: 13px;
-      padding: 8px 20px;
+      background: rgba(224,82,82,0.07);
+      border-bottom: 1px solid rgba(224,82,82,0.25);
+      color: #e08080;
+      font-family: 'Fira Code', monospace;
+      font-size: 12px;
+      padding: 9px 24px;
       flex-shrink: 0;
     }
 
-    /* ── Controls bar ── */
+    /* ─────────── CONTROLS ─────────── */
     #controls {
       display: flex;
       align-items: center;
-      gap: 10px;
-      padding: 10px 20px;
-      background: var(--surface);
+      gap: 8px;
+      padding: 11px 24px;
+      background: rgba(12,17,27,0.6);
       border-bottom: 1px solid var(--border);
       flex-shrink: 0;
       flex-wrap: wrap;
     }
-    #controls input, #controls select {
-      background: var(--bg);
+
+    .ctrl-label {
+      font-family: 'Fira Code', monospace;
+      font-size: 10px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      white-space: nowrap;
+    }
+
+    input[type="text"],
+    select {
+      background: var(--surface-2);
       border: 1px solid var(--border);
       border-radius: 6px;
       color: var(--text);
       font-size: 13px;
+      font-family: 'DM Sans', sans-serif;
       padding: 6px 10px;
       outline: none;
+      transition: border-color 0.15s, box-shadow 0.15s;
     }
-    #controls input:focus, #controls select:focus {
-      border-color: var(--accent);
+    input[type="text"]:focus,
+    select:focus {
+      border-color: rgba(232,83,58,0.5);
+      box-shadow: 0 0 0 3px rgba(232,83,58,0.08);
     }
-    #user-id { width: 130px; }
+
+    select {
+      cursor: pointer;
+      -webkit-appearance: none;
+      padding-right: 30px;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%233e5270' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round' fill='none'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 10px center;
+    }
+
+    #user-id { width: 120px; }
+
+    .v-sep {
+      width: 1px;
+      height: 26px;
+      background: var(--border);
+      flex-shrink: 0;
+      margin: 0 2px;
+    }
 
     button {
       border: none;
-      border-radius: 6px;
+      border-radius: 7px;
       cursor: pointer;
+      font-family: 'DM Sans', sans-serif;
       font-size: 13px;
       font-weight: 500;
-      padding: 7px 14px;
-      transition: opacity 0.15s;
+      padding: 7px 16px;
+      transition: all 0.15s;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      white-space: nowrap;
     }
-    button:disabled { opacity: 0.4; cursor: default; }
-    button:not(:disabled):hover { opacity: 0.85; }
+    button:disabled { opacity: 0.35; cursor: default; }
 
-    #btn-start { background: var(--accent); color: #fff; }
-    #btn-stop  { background: var(--error);  color: #fff; display: none; }
+    #btn-start {
+      background: var(--accent);
+      color: #fff;
+      box-shadow: 0 2px 14px var(--accent-glow), 0 0 0 1px rgba(232,83,58,0.2);
+    }
+    #btn-start:not(:disabled):hover {
+      background: #d44428;
+      box-shadow: 0 2px 22px rgba(232,83,58,0.35), 0 0 0 1px rgba(232,83,58,0.3);
+      transform: translateY(-1px);
+    }
+    #btn-start:not(:disabled):active { transform: translateY(0); }
+
+    #btn-stop {
+      display: none;
+      background: transparent;
+      color: var(--error);
+      border: 1px solid rgba(224,82,82,0.3);
+    }
+    #btn-stop:not(:disabled):hover {
+      background: rgba(224,82,82,0.08);
+      border-color: rgba(224,82,82,0.5);
+    }
 
     #session-info {
+      font-family: 'Fira Code', monospace;
       font-size: 11px;
       color: var(--muted);
-      font-family: monospace;
+      margin-left: auto;
+      letter-spacing: 0.04em;
     }
 
-    /* ── Transcript ── */
+    /* ─────────── VOICE STRIP ─────────── */
+    #voice-strip {
+      display: none;
+      align-items: center;
+      gap: 14px;
+      padding: 7px 24px;
+      background: rgba(10,14,20,0.9);
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+      min-height: 40px;
+    }
+    #voice-strip.user-speaking  { display: flex; border-bottom-color: rgba(61,214,140,0.2); }
+    #voice-strip.ai-speaking    { display: flex; border-bottom-color: rgba(232,83,58,0.2); }
+
+    .vs-label {
+      font-family: 'Fira Code', monospace;
+      font-size: 10px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      min-width: 80px;
+    }
+    #voice-strip.user-speaking .vs-label { color: var(--success); }
+    #voice-strip.ai-speaking   .vs-label { color: var(--accent); }
+
+    #viz-canvas {
+      height: 24px;
+      width: 96px;
+      display: block;
+    }
+
+    /* CSS bar animation for AI speaking */
+    .ai-viz {
+      display: none;
+      align-items: flex-end;
+      gap: 3px;
+      height: 24px;
+    }
+    #voice-strip.ai-speaking .ai-viz { display: flex; }
+    #voice-strip.user-speaking .ai-viz { display: none; }
+    #voice-strip.ai-speaking #viz-canvas { display: none; }
+    #voice-strip.user-speaking #viz-canvas { display: block; }
+
+    .ai-bar {
+      width: 3px;
+      background: var(--accent);
+      border-radius: 2px;
+      animation: ai-bar-bounce 0.9s ease-in-out infinite;
+    }
+    .ai-bar:nth-child(1) { animation-delay: 0s;    --h: 8px; }
+    .ai-bar:nth-child(2) { animation-delay: 0.12s; --h: 18px; }
+    .ai-bar:nth-child(3) { animation-delay: 0.22s; --h: 14px; }
+    .ai-bar:nth-child(4) { animation-delay: 0.08s; --h: 20px; }
+    .ai-bar:nth-child(5) { animation-delay: 0.18s; --h: 10px; }
+    .ai-bar:nth-child(6) { animation-delay: 0.28s; --h: 16px; }
+    .ai-bar:nth-child(7) { animation-delay: 0.06s; --h: 22px; }
+    .ai-bar:nth-child(8) { animation-delay: 0.14s; --h: 12px; }
+
+    @keyframes ai-bar-bounce {
+      0%, 100% { height: 4px; }
+      50%       { height: var(--h); }
+    }
+
+    .vs-dots {
+      display: flex;
+      gap: 4px;
+    }
+    .vs-dot {
+      width: 4px; height: 4px;
+      border-radius: 50%;
+      background: var(--muted);
+      animation: vs-dot-fade 1.2s ease-in-out infinite;
+    }
+    .vs-dot:nth-child(2) { animation-delay: 0.2s; }
+    .vs-dot:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes vs-dot-fade {
+      0%, 80%, 100% { opacity: 0.25; transform: scale(0.8); }
+      40%            { opacity: 1;    transform: scale(1.1); }
+    }
+
+    /* ─────────── TRANSCRIPT ─────────── */
     #transcript-section {
       flex: 1;
       overflow: hidden;
       display: flex;
       flex-direction: column;
     }
-    #transcript-section h2 {
-      font-size: 11px;
-      font-weight: 600;
-      letter-spacing: 1px;
-      text-transform: uppercase;
-      color: var(--muted);
-      padding: 10px 20px 4px;
+
+    #transcript-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 24px 5px;
       flex-shrink: 0;
     }
+    #transcript-header span {
+      font-family: 'Fira Code', monospace;
+      font-size: 10px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    #msg-count { font-weight: 400; }
+
     #transcript {
       flex: 1;
       overflow-y: auto;
-      padding: 8px 20px 16px;
+      padding: 8px 24px 24px;
       display: flex;
       flex-direction: column;
+      gap: 14px;
+      scroll-behavior: smooth;
+    }
+    #transcript::-webkit-scrollbar { width: 3px; }
+    #transcript::-webkit-scrollbar-track { background: transparent; }
+    #transcript::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+    #transcript:empty::after {
+      content: 'Transcript will appear once you start a call…';
+      color: var(--muted);
+      font-family: 'Fira Code', monospace;
+      font-size: 12px;
+      margin-top: 20px;
+      opacity: 0.6;
+      letter-spacing: 0.03em;
+    }
+
+    /* ── Message ── */
+    .msg {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      max-width: 70%;
+      animation: msg-in 0.22s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+    }
+    @keyframes msg-in {
+      from { opacity: 0; transform: translateY(10px) scale(0.98); }
+      to   { opacity: 1; transform: translateY(0)   scale(1); }
+    }
+
+    .msg.user { align-self: flex-start; }
+    .msg.ai   { align-self: flex-end; }
+
+    .msg-meta {
+      display: flex;
+      align-items: center;
       gap: 8px;
     }
-    #transcript:empty::after {
-      content: 'Transcript will appear here once you start a call.';
-      color: var(--muted);
-      font-size: 13px;
-      margin-top: 16px;
+    .msg.ai .msg-meta { flex-direction: row-reverse; }
+
+    .msg-badge {
+      font-family: 'Fira Code', monospace;
+      font-size: 9px;
+      font-weight: 500;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      padding: 2px 7px;
+      border-radius: 3px;
+    }
+    .msg.user .msg-badge {
+      background: rgba(61,214,140,0.08);
+      color: var(--success);
+      border: 1px solid rgba(61,214,140,0.18);
+    }
+    .msg.ai .msg-badge {
+      background: rgba(232,83,58,0.08);
+      color: var(--accent);
+      border: 1px solid rgba(232,83,58,0.18);
     }
 
-    .msg {
-      max-width: 75%;
-      padding: 8px 12px;
+    .msg-ts {
+      font-family: 'Fira Code', monospace;
+      font-size: 9px;
+      color: var(--muted);
+      letter-spacing: 0.04em;
+    }
+
+    .msg-bubble {
+      padding: 10px 14px;
       border-radius: 10px;
+      line-height: 1.65;
       font-size: 14px;
-      line-height: 1.55;
+      font-weight: 300;
+      letter-spacing: 0.01em;
+      word-break: break-word;
     }
-    .msg .label {
-      font-size: 11px;
-      color: var(--muted);
-      margin-bottom: 3px;
+    /* .body is the class appendText/setText use — colocated with .msg-bubble */
+    .msg.user .msg-bubble {
+      background: var(--user-bg);
+      border: 1px solid rgba(61,214,140,0.08);
+      border-bottom-left-radius: 3px;
     }
-    .msg.user { background: var(--user-bg); align-self: flex-start; border-bottom-left-radius: 3px; }
-    .msg.ai   { background: var(--ai-bg);   align-self: flex-end;   border-bottom-right-radius: 3px; }
-    .msg.ai .label { text-align: right; }
+    .msg.ai .msg-bubble {
+      background: var(--ai-bg);
+      border: 1px solid rgba(232,83,58,0.08);
+      border-bottom-right-radius: 3px;
+    }
 
-    /* ── Tool call log ── */
+    /* Blinking cursor while streaming */
+    .streaming::after {
+      content: '▋';
+      display: inline;
+      color: var(--accent);
+      font-size: 12px;
+      animation: cursor-blink 0.65s step-end infinite;
+      margin-left: 1px;
+    }
+    .msg.user .streaming::after { color: var(--success); }
+    @keyframes cursor-blink {
+      0%, 100% { opacity: 1; }
+      50%       { opacity: 0; }
+    }
+
+    /* ─────────── TOOL LOG ─────────── */
     #tool-log {
       flex-shrink: 0;
       border-top: 1px solid var(--border);
-      background: var(--surface);
-      max-height: 200px;
-      overflow: hidden;
-      display: flex;
-      flex-direction: column;
+      background: rgba(10,14,22,0.8);
+      transition: max-height 0.2s ease;
     }
-    #tool-log summary {
-      padding: 8px 20px;
-      font-size: 12px;
-      font-weight: 600;
-      letter-spacing: 0.5px;
-      text-transform: uppercase;
-      color: var(--muted);
+
+    #tool-log-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 9px 24px;
       cursor: pointer;
       user-select: none;
-      flex-shrink: 0;
-      list-style: none;
+      transition: background 0.12s;
     }
-    #tool-log summary::before { content: '▶ '; }
-    #tool-log[open] summary::before { content: '▼ '; }
-    #tool-log[open] { max-height: 200px; }
-    #tool-entries {
-      overflow-y: auto;
-      padding: 0 20px 10px;
+    #tool-log-header:hover { background: rgba(255,255,255,0.02); }
+
+    .tl-left {
       display: flex;
-      flex-direction: column;
-      gap: 4px;
+      align-items: center;
+      gap: 9px;
     }
+    .tl-title {
+      font-family: 'Fira Code', monospace;
+      font-size: 10px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    #tool-badge {
+      font-family: 'Fira Code', monospace;
+      font-size: 9px;
+      font-weight: 500;
+      padding: 2px 7px;
+      border-radius: 3px;
+      background: rgba(240,185,58,0.1);
+      color: var(--warn);
+      border: 1px solid rgba(240,185,58,0.2);
+      transition: all 0.2s;
+    }
+    #tool-badge.has-items {
+      background: rgba(240,185,58,0.15);
+      color: var(--warn);
+      box-shadow: 0 0 8px rgba(240,185,58,0.15);
+    }
+
+    .tl-chevron {
+      font-size: 10px;
+      color: var(--muted);
+      transition: transform 0.2s;
+      font-family: 'Fira Code', monospace;
+    }
+    #tool-log.open .tl-chevron { transform: rotate(180deg); }
+
+    #tool-entries {
+      display: none;
+      overflow-y: auto;
+      padding: 2px 24px 12px;
+      flex-direction: column;
+      gap: 2px;
+      max-height: 130px;
+    }
+    #tool-entries::-webkit-scrollbar { width: 3px; }
+    #tool-entries::-webkit-scrollbar-thumb { background: var(--border); }
+    #tool-log.open #tool-entries { display: flex; }
+
     .tool-entry {
-      font-size: 12px;
-      font-family: monospace;
+      font-family: 'Fira Code', monospace;
+      font-size: 11px;
       color: var(--muted);
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
+      padding: 2px 0;
+      border-left: 2px solid transparent;
+      padding-left: 8px;
+      transition: border-color 0.15s;
     }
-    .tool-entry .ts { color: var(--border); }
-    .tool-entry .arrow-out { color: var(--warn); }
-    .tool-entry .arrow-in  { color: var(--success); }
-    .tool-entry .arrow-err { color: var(--error); }
-    .tool-entry b { color: var(--text); }
-    #tool-count { font-weight: normal; }
+    .tool-entry:last-child { border-left-color: var(--border); }
+    .te-ts    { color: #1e2d40; }
+    .te-out   { color: var(--warn); }
+    .te-in    { color: var(--success); }
+    .te-err   { color: var(--error); }
+    .te-name  { color: var(--text); font-weight: 500; }
+    .te-value { color: var(--muted); }
   </style>
 </head>
 <body>
 
+<!-- ── Header ─────────────────────────────────────────────────────────── -->
 <header>
-  <h1>🎙️ Voice Agent Console</h1>
-  <div class="status-pill">
-    <span id="status-dot" class="dot disconnected"></span>
-    <span id="status-label">disconnected</span>
+  <div class="brand">
+    <span class="brand-name">ARIA</span>
+    <span class="brand-sep">/</span>
+    <span class="brand-sub">voice agent console</span>
+  </div>
+  <div class="header-right">
+    <span id="session-timer"></span>
+    <div class="status-pill">
+      <span id="status-dot" class="dot disconnected"></span>
+      <span id="status-label">disconnected</span>
+    </div>
   </div>
 </header>
 
+<!-- ── Error banner ──────────────────────────────────────────────────── -->
 <div id="error-banner"></div>
 
+<!-- ── Controls ──────────────────────────────────────────────────────── -->
 <section id="controls">
+  <span class="ctrl-label">User</span>
   <input id="user-id" type="text" value="user-1" placeholder="User ID" />
+  <span class="ctrl-label">Agent</span>
   <select id="agent-id">
     <option value="agent_one">agent_one</option>
+    <option value="l1_support">l1_support</option>
   </select>
-  <button id="btn-start" onclick="startCall()">📞 Start Call</button>
-  <button id="btn-stop"  onclick="stopCall()">🔴 End Call</button>
+  <div class="v-sep"></div>
+  <button id="btn-start" onclick="startCall()">
+    <svg class="mic-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+    Start Call
+  </button>
+  <button id="btn-stop" onclick="stopCall()">
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>
+    End Call
+  </button>
   <span id="session-info"></span>
 </section>
 
+<!-- ── Voice activity strip ───────────────────────────────────────────── -->
+<div id="voice-strip">
+  <span class="vs-label" id="vs-label">LISTENING</span>
+  <!-- User mic canvas -->
+  <canvas id="viz-canvas" width="96" height="24"></canvas>
+  <!-- AI speaking bars -->
+  <div class="ai-viz">
+    <div class="ai-bar"></div>
+    <div class="ai-bar"></div>
+    <div class="ai-bar"></div>
+    <div class="ai-bar"></div>
+    <div class="ai-bar"></div>
+    <div class="ai-bar"></div>
+    <div class="ai-bar"></div>
+    <div class="ai-bar"></div>
+  </div>
+  <div class="vs-dots">
+    <div class="vs-dot"></div>
+    <div class="vs-dot"></div>
+    <div class="vs-dot"></div>
+  </div>
+</div>
+
+<!-- ── Transcript ─────────────────────────────────────────────────────── -->
 <section id="transcript-section">
-  <h2>Transcript</h2>
+  <div id="transcript-header">
+    <span>Transcript</span>
+    <span id="msg-count"></span>
+  </div>
   <div id="transcript" aria-live="polite"></div>
 </section>
 
-<details id="tool-log">
-  <summary>Tool Calls <span id="tool-count">(0)</span></summary>
+<!-- ── Tool call log ──────────────────────────────────────────────────── -->
+<div id="tool-log">
+  <div id="tool-log-header" onclick="toggleToolLog()">
+    <div class="tl-left">
+      <span class="tl-title">Tool Calls</span>
+      <span id="tool-badge">0</span>
+    </div>
+    <span class="tl-chevron">▲</span>
+  </div>
   <div id="tool-entries"></div>
-</details>
+</div>
 
 <audio id="remote-audio" autoplay playsinline></audio>
 
@@ -251,15 +646,117 @@
   'use strict';
 
   // ── State ────────────────────────────────────────────────────────────────
-  let pc         = null;   // RTCPeerConnection
-  let dc         = null;   // DataChannel
-  let micStream  = null;   // MediaStream from getUserMedia
-  let sessionId  = null;
-  let toolCount  = 0;
+  let pc           = null;
+  let dc           = null;
+  let micStream    = null;
+  let sessionId    = null;
+  let toolCount    = 0;
+  let msgCount     = 0;
 
-  // Current in-progress transcript elements (updated by delta events)
   let currentUserEl = null;
   let currentAiEl   = null;
+
+  // Accurate Whisper transcript captured before tool call dispatch
+  let lastTranscript = '';
+
+  // True between response.created and response.done — guards response.cancel
+  let isAiResponding = false;
+
+  // Session timer
+  let timerInterval = null;
+  let timerStart    = null;
+
+  // Audio visualizer
+  let audioCtx    = null;
+  let analyser    = null;
+  let vizAnimId   = null;
+
+  // ── Timer ─────────────────────────────────────────────────────────────────
+  function startTimer() {
+    timerStart = Date.now();
+    timerInterval = setInterval(() => {
+      const s = Math.floor((Date.now() - timerStart) / 1000);
+      const mm = String(Math.floor(s / 60)).padStart(2, '0');
+      const ss = String(s % 60).padStart(2, '0');
+      document.getElementById('session-timer').textContent = `${mm}:${ss}`;
+    }, 1000);
+  }
+
+  function stopTimer() {
+    if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
+    document.getElementById('session-timer').textContent = '';
+  }
+
+  // ── Audio Visualizer ──────────────────────────────────────────────────────
+  function initViz(stream) {
+    try {
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      const src = audioCtx.createMediaStreamSource(stream);
+      analyser = audioCtx.createAnalyser();
+      analyser.fftSize = 32;
+      analyser.smoothingTimeConstant = 0.65;
+      src.connect(analyser);
+    } catch (e) {
+      analyser = null;
+    }
+  }
+
+  function drawViz() {
+    if (!analyser) return;
+    const canvas = document.getElementById('viz-canvas');
+    const ctx    = canvas.getContext('2d');
+    const buf    = new Uint8Array(analyser.frequencyBinCount);
+    analyser.getByteFrequencyData(buf);
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    const N    = Math.min(14, buf.length);
+    const barW = 4;
+    const gap  = 2;
+    for (let i = 0; i < N; i++) {
+      const val = buf[i] / 255;
+      const h   = Math.max(3, val * canvas.height);
+      const x   = i * (barW + gap);
+      const y   = canvas.height - h;
+      const alpha = 0.35 + val * 0.65;
+      ctx.fillStyle = `rgba(61, 214, 140, ${alpha})`;
+      if (ctx.roundRect) {
+        ctx.beginPath();
+        ctx.roundRect(x, y, barW, h, 1);
+        ctx.fill();
+      } else {
+        ctx.fillRect(x, y, barW, h);
+      }
+    }
+    vizAnimId = requestAnimationFrame(drawViz);
+  }
+
+  function startUserViz() {
+    const strip = document.getElementById('voice-strip');
+    document.getElementById('vs-label').textContent = 'LISTENING';
+    strip.className = 'user-speaking';
+    if (analyser && !vizAnimId) drawViz();
+  }
+
+  function startAiViz() {
+    if (vizAnimId) { cancelAnimationFrame(vizAnimId); vizAnimId = null; }
+    const strip = document.getElementById('voice-strip');
+    document.getElementById('vs-label').textContent = 'SPEAKING';
+    strip.className = 'ai-speaking';
+  }
+
+  function hideViz() {
+    if (vizAnimId) { cancelAnimationFrame(vizAnimId); vizAnimId = null; }
+    document.getElementById('voice-strip').className = '';
+    const canvas = document.getElementById('viz-canvas');
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+  }
+
+  function destroyViz() {
+    hideViz();
+    if (audioCtx) { try { audioCtx.close(); } catch {} audioCtx = null; }
+    analyser = null;
+  }
 
   // ── Entry points ──────────────────────────────────────────────────────────
   async function startCall() {
@@ -284,14 +781,14 @@
         throw new Error(err.detail || `Session creation failed (HTTP ${sessResp.status})`);
       }
 
-      const session  = await sessResp.json();
-      sessionId      = session.session_id;
-      const secret   = session.client_secret;
-      const model    = session.realtime?.model || session.realtime?.session?.model || 'gpt-4o-realtime-preview';
+      const session = await sessResp.json();
+      sessionId     = session.session_id;
+      const secret  = session.client_secret;
 
-      document.getElementById('session-info').textContent = `session: ${sessionId.slice(0, 8)}…`;
+      document.getElementById('session-info').textContent =
+        `id: ${sessionId.slice(0, 8)}…`;
 
-      if (!secret) throw new Error('No client_secret in session response — check OPENAI_API_KEY in voice-wrapper .env');
+      if (!secret) throw new Error('No client_secret — check OPENAI_API_KEY in voice-wrapper .env');
 
       // 2. Microphone
       try {
@@ -299,6 +796,8 @@
       } catch {
         throw new Error('Microphone access denied — please allow mic access and try again.');
       }
+
+      initViz(micStream);
 
       // 3. PeerConnection
       pc = new RTCPeerConnection();
@@ -309,7 +808,7 @@
       };
 
       pc.onconnectionstatechange = () => {
-        if (pc?.connectionState === 'failed') showError('WebRTC connection failed.');
+        if (pc?.connectionState === 'failed')       showError('WebRTC connection failed.');
         if (pc?.connectionState === 'disconnected') stopCall();
       };
 
@@ -339,18 +838,15 @@
         });
       });
 
-      // 7. Exchange SDP with OpenAI Realtime (GA: POST /v1/realtime/calls, raw SDP body)
-      const sdpResp = await fetch(
-        'https://api.openai.com/v1/realtime/calls',
-        {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${secret}`,
-            'Content-Type': 'application/sdp',
-          },
-          body: pc.localDescription.sdp,
-        }
-      );
+      // 7. Exchange SDP with OpenAI Realtime
+      const sdpResp = await fetch('https://api.openai.com/v1/realtime/calls', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${secret}`,
+          'Content-Type': 'application/sdp',
+        },
+        body: pc.localDescription.sdp,
+      });
 
       if (!sdpResp.ok) {
         const body = await sdpResp.text();
@@ -360,7 +856,8 @@
       await pc.setRemoteDescription({ type: 'answer', sdp: await sdpResp.text() });
 
       setStatus('connected');
-      document.getElementById('btn-stop').style.display  = 'inline-block';
+      startTimer();
+      document.getElementById('btn-stop').style.display  = 'inline-flex';
       document.getElementById('btn-start').style.display = 'none';
 
     } catch (err) {
@@ -377,21 +874,26 @@
     }
     cleanup();
     sessionId = null;
+    stopTimer();
     setStatus('disconnected');
     document.getElementById('session-info').textContent = '';
     document.getElementById('btn-stop').style.display  = 'none';
-    document.getElementById('btn-start').style.display = 'inline-block';
+    document.getElementById('btn-start').style.display = 'inline-flex';
     setBtnEnabled('start', true);
+    hideViz();
   }
 
   function cleanup() {
     if (dc)        { try { dc.close(); }  catch {} dc = null; }
     if (pc)        { try { pc.close(); }  catch {} pc = null; }
     if (micStream) { micStream.getTracks().forEach(t => t.stop()); micStream = null; }
+    destroyViz();
     const audio = document.getElementById('remote-audio');
     audio.srcObject = null;
-    currentUserEl = null;
-    currentAiEl   = null;
+    currentUserEl  = null;
+    currentAiEl    = null;
+    lastTranscript = '';
+    isAiResponding = false;
   }
 
   function setMicEnabled(enabled) {
@@ -400,21 +902,17 @@
 
   // ── Data channel ──────────────────────────────────────────────────────────
   function onDataChannelOpen() {
-    // gpt-realtime-2 GA schema: audio config nested under audio.input / audio.output
+    // Correct flat data-channel session.update schema for gpt-realtime-2
     dc.send(JSON.stringify({
       type: 'session.update',
       session: {
-        type: 'realtime',
-        audio: {
-          input: {
-            transcription: { model: 'whisper-1' },
-            turn_detection: {
-              type: 'server_vad',
-              threshold: 0.5,
-              prefix_padding_ms: 300,
-              silence_duration_ms: 500,
-            },
-          },
+        input_audio_transcription: { model: 'whisper-1' },
+        output_audio_transcription: { model: 'whisper-1' },
+        turn_detection: {
+          type: 'server_vad',
+          threshold: 0.7,
+          prefix_padding_ms: 300,
+          silence_duration_ms: 700,
         },
       },
     }));
@@ -423,8 +921,15 @@
   function handleEvent(event) {
     switch (event.type) {
 
-      // User speech
+      // User speech starts — interrupt any AI response
       case 'input_audio_buffer.speech_started':
+        lastTranscript = '';
+        if (isAiResponding) {
+          dc.send(JSON.stringify({ type: 'response.cancel' }));
+          isAiResponding = false;
+          currentAiEl = null;
+        }
+        startUserViz();
         currentUserEl = addMsg('user', '');
         break;
 
@@ -434,13 +939,19 @@
         break;
 
       case 'conversation.item.input_audio_transcription.completed':
-        if (currentUserEl) { setText(currentUserEl, event.transcript || ''); currentUserEl = null; }
+        lastTranscript = event.transcript || '';
+        if (currentUserEl) {
+          finaliseText(currentUserEl, lastTranscript);
+          currentUserEl = null;
+        }
+        hideViz();
         break;
 
-      // AI speech
+      // AI speech — don't create bubble here; response.audio_transcript.delta does it
+      // on demand so function-call responses (no audio) don't leave ghost bubbles
       case 'response.created':
-        currentAiEl = addMsg('ai', '');
-        setMicEnabled(false);
+        isAiResponding = true;
+        startAiViz();
         break;
 
       case 'response.audio_transcript.delta':
@@ -449,18 +960,30 @@
         break;
 
       case 'response.audio_transcript.done':
-        if (currentAiEl) { setText(currentAiEl, event.transcript || ''); currentAiEl = null; }
+        if (currentAiEl) {
+          finaliseText(currentAiEl, event.transcript || '');
+          currentAiEl = null;
+        }
+        hideViz();
         break;
 
-      // Tool calls
+      // Tool calls & done
       case 'response.done':
+        isAiResponding = false;
+        currentAiEl = null;         // safety: clear any unreceived transcript.done
         handleToolCalls(event.response?.output || []);
-        setMicEnabled(true);
+        hideViz();
         break;
 
-      case 'error':
-        showError(event.error?.message || JSON.stringify(event.error));
+      case 'error': {
+        const errMsg = event.error?.message || JSON.stringify(event.error);
+        // Suppress benign cancel races — OpenAI sends "No active response found"
+        // when response.cancel arrives after the response already ended
+        if (/cancel|no active response|response_not_active/i.test(errMsg)) break;
+        showError(errMsg);
+        hideViz();
         break;
+      }
     }
   }
 
@@ -470,6 +993,9 @@
 
       let args = {};
       try { args = JSON.parse(item.arguments || '{}'); } catch {}
+
+      // Override with accurate Whisper transcript if available
+      if (lastTranscript) args.user_message = lastTranscript;
 
       addToolEntry('out', item.name, args.user_message || item.arguments);
 
@@ -483,15 +1009,14 @@
 
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
-        addToolEntry('in', item.name, data.answer || data.speak || JSON.stringify(data));
-        outputPayload = JSON.stringify(data);
+        addToolEntry('in', item.name, data.speak || data.answer || JSON.stringify(data));
+        outputPayload = JSON.stringify({ answer: data.answer || data.speak || '', speak: data.speak || data.answer || '' });
 
       } catch (err) {
         addToolEntry('err', item.name, err.message);
         outputPayload = JSON.stringify({ error: err.message });
       }
 
-      // Return result to Realtime session
       dc.send(JSON.stringify({
         type: 'conversation.item.create',
         item: {
@@ -506,60 +1031,97 @@
 
   // ── Transcript helpers ────────────────────────────────────────────────────
   function addMsg(role, text) {
-    const box   = document.getElementById('transcript');
-    const div   = document.createElement('div');
-    div.className = 'msg ' + role;
-    const lbl   = document.createElement('div');
-    lbl.className = 'label';
-    lbl.textContent = role === 'user' ? '🎤 You' : '🤖 Agent';
-    const body  = document.createElement('div');
-    body.className = 'body';
-    body.textContent = text;
-    div.appendChild(lbl);
-    div.appendChild(body);
-    box.appendChild(div);
+    const box = document.getElementById('transcript');
+
+    const wrap = document.createElement('div');
+    wrap.className = 'msg ' + role;
+
+    const meta = document.createElement('div');
+    meta.className = 'msg-meta';
+
+    const badge = document.createElement('span');
+    badge.className = 'msg-badge';
+    badge.textContent = role === 'user' ? 'You' : 'Agent';
+
+    const ts = document.createElement('span');
+    ts.className = 'msg-ts';
+    ts.textContent = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
+    meta.appendChild(badge);
+    meta.appendChild(ts);
+
+    const bubble = document.createElement('div');
+    bubble.className = 'msg-bubble body streaming';
+    bubble.textContent = text;
+
+    wrap.appendChild(meta);
+    wrap.appendChild(bubble);
+    box.appendChild(wrap);
     box.scrollTop = box.scrollHeight;
-    return div;
+
+    msgCount++;
+    document.getElementById('msg-count').textContent = `${msgCount} msg${msgCount !== 1 ? 's' : ''}`;
+
+    return wrap;
   }
 
-  function appendText(div, delta) {
-    div.querySelector('.body').textContent += delta;
+  function appendText(wrap, delta) {
+    wrap.querySelector('.body').textContent += delta;
     const box = document.getElementById('transcript');
     box.scrollTop = box.scrollHeight;
   }
 
-  function setText(div, text) {
-    div.querySelector('.body').textContent = text;
+  function finaliseText(wrap, text) {
+    const bubble = wrap.querySelector('.body');
+    bubble.classList.remove('streaming');
+    bubble.textContent = text;
   }
 
   function clearTranscript() {
     document.getElementById('transcript').innerHTML = '';
     document.getElementById('tool-entries').innerHTML = '';
+    msgCount  = 0;
     toolCount = 0;
-    document.getElementById('tool-count').textContent = '(0)';
-    document.getElementById('tool-log').open = false;
+    document.getElementById('msg-count').textContent  = '';
+    document.getElementById('tool-badge').textContent = '0';
+    document.getElementById('tool-badge').classList.remove('has-items');
+    document.getElementById('tool-log').classList.remove('open');
+    currentUserEl = null;
+    currentAiEl   = null;
+    lastTranscript = '';
   }
 
-  // ── Tool log helpers ──────────────────────────────────────────────────────
+  // ── Tool log ──────────────────────────────────────────────────────────────
+  function toggleToolLog() {
+    document.getElementById('tool-log').classList.toggle('open');
+  }
+
   function addToolEntry(dir, name, detail) {
     toolCount++;
-    document.getElementById('tool-count').textContent = `(${toolCount})`;
-    document.getElementById('tool-log').open = true;
+    const badge = document.getElementById('tool-badge');
+    badge.textContent = toolCount;
+    badge.classList.add('has-items');
 
-    const entry  = document.createElement('div');
+    const entry = document.createElement('div');
     entry.className = 'tool-entry';
-    const ts     = new Date().toLocaleTimeString();
-    const arrowClass = dir === 'out' ? 'arrow-out' : dir === 'in' ? 'arrow-in' : 'arrow-err';
-    const arrow  = dir === 'out' ? '→' : dir === 'in' ? '←' : '⚠';
+    const ts        = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    const arrowCls  = dir === 'out' ? 'te-out' : dir === 'in' ? 'te-in' : 'te-err';
+    const arrow     = dir === 'out' ? '→' : dir === 'in' ? '←' : '⚠';
+
     entry.innerHTML =
-      `<span class="ts">${ts}</span> ` +
-      `<span class="${arrowClass}">${arrow}</span> ` +
-      `<b>${esc(name)}</b>: ` +
-      `<span>${esc(String(detail))}</span>`;
+      `<span class="te-ts">${esc(ts)}</span>  ` +
+      `<span class="${arrowCls}">${arrow}</span> ` +
+      `<span class="te-name">${esc(name)}</span>` +
+      `<span class="te-value">: ${esc(String(detail).slice(0, 120))}</span>`;
 
     const container = document.getElementById('tool-entries');
     container.appendChild(entry);
     container.scrollTop = container.scrollHeight;
+
+    // Auto-open log on first entry
+    if (toolCount === 1) {
+      document.getElementById('tool-log').classList.add('open');
+    }
   }
 
   // ── UI helpers ────────────────────────────────────────────────────────────
@@ -574,7 +1136,7 @@
 
   function showError(msg) {
     const el = document.getElementById('error-banner');
-    el.textContent = '⚠ ' + msg;
+    el.textContent = '⚠  ' + msg;
     el.style.display = 'block';
   }
 
@@ -583,7 +1145,11 @@
   }
 
   function esc(s) {
-    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    return String(s)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
   }
 </script>
 </body>

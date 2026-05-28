@@ -6,11 +6,14 @@ from typing import Any
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
+from langgraph.checkpoint.memory import MemorySaver
+
 from app.graph.graph import build_graph
 from app.retrieval import DEFAULT_WEBSITE_ID
 
 router = APIRouter()
-_graph = build_graph()
+_checkpointer = MemorySaver()
+_graph = build_graph(checkpointer=_checkpointer)
 
 
 class InvokeRequest(BaseModel):
@@ -28,6 +31,7 @@ class IngestRequest(BaseModel):
 
 @router.post("/agents/agent-one/invoke")
 def invoke(request: InvokeRequest):
+    config = {"configurable": {"thread_id": request.thread_id}}
     state = _graph.invoke({
         "user_message": request.message,
         "thread_id": request.thread_id,
@@ -36,7 +40,7 @@ def invoke(request: InvokeRequest):
         "messages": [],
         "retrieved_chunks": [],
         "citations": [],
-    })
+    }, config=config)
     return {
         "answer": state.get("final_answer") or "",
         "speak": state.get("speak") or "",

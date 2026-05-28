@@ -1,6 +1,22 @@
 from app.graph.state import AgentOneState
 
 
+def _llm_synthesize_speak(user_message: str, context: str) -> str:
+    import os
+    if not os.getenv("OPENAI_API_KEY"):
+        return context.split(".")[0].strip() + "."
+    from langchain_openai import ChatOpenAI
+    from app import config as cfg
+    llm = ChatOpenAI(model=cfg.OPENAI_MODEL, temperature=0.3)
+    prompt = (
+        f'User asked: "{user_message}"\n\n'
+        f"Context:\n{context[:800]}\n\n"
+        "Write a concise spoken answer in 1-2 sentences. No bullet points, no markdown, natural voice."
+    )
+    response = llm.invoke([{"role": "user", "content": prompt}])
+    return response.content.strip()
+
+
 def answer_composer(state: AgentOneState) -> AgentOneState:
     chunks = state.get("retrieved_chunks") or []
     api_result = state.get("api_result")
@@ -23,7 +39,8 @@ def answer_composer(state: AgentOneState) -> AgentOneState:
     if chunks:
         top = chunks[0]
         answer_parts.append(f"According to {top['title']}, {top['content']}")
-        speak_parts.append(_voice_summary(top["content"]))
+        combined_context = " ".join(c["content"] for c in chunks[:3])
+        speak_parts.append(_llm_synthesize_speak(state.get("user_message", ""), combined_context))
 
     if sql_result:
         answer_parts.append(_format_sql_answer(sql_result))
@@ -104,6 +121,8 @@ def _format_api_answer(api_result: dict) -> str:
         return "Available appointment slots: " + ", ".join(slot["starts_at"] for slot in slots) + "."
     if tool == "get_customer":
         return f"Customer {data['name']} is on the {data['plan']} plan."
+    if tool == "no_database":
+        return "I don't have a database configured to answer that query. Please set DATABASE_URL to enable SQL queries."
     return "The business API returned structured data for this request."
 
 
@@ -119,4 +138,6 @@ def _format_api_speak(api_result: dict) -> str:
         return f"I found {len(slots)} available appointment slots."
     if tool == "get_customer":
         return f"The account is on the {data['plan']} plan."
+    if tool == "no_database":
+        return "I need a configured database to answer that. Please set the DATABASE_URL environment variable."
     return "I found structured account data for this request."

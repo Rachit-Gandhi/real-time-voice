@@ -10,6 +10,14 @@ class AgentInvokeError(RuntimeError):
     pass
 
 
+_AGENT_ROUTES: dict[str, str] = {
+    "agent_one":   "/agents/agent-one/invoke",
+    "agent-one":   "/agents/agent-one/invoke",
+    "l1_support":  "/agents/l1-support/invoke",
+    "l1-support":  "/agents/l1-support/invoke",
+}
+
+
 class AgentOneClient:
     def __init__(self, settings: Settings, timeout_seconds: float = 15.0) -> None:
         self._base_url = settings.agent_one_base_url.rstrip("/")
@@ -24,8 +32,9 @@ class AgentOneClient:
         user_id: str | None = None,
         context: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
-        if agent_id not in {"agent_one", "agent-one"}:
-            raise AgentInvokeError(f"Unsupported agent_id for agent-one client: {agent_id}")
+        route = _AGENT_ROUTES.get(agent_id)
+        if not route:
+            raise AgentInvokeError(f"Unsupported agent_id '{agent_id}'. Known agents: {list(_AGENT_ROUTES)}")
 
         payload: dict[str, Any] = {
             "message": user_message,
@@ -36,7 +45,7 @@ class AgentOneClient:
         if context is not None:
             payload["context"] = context
 
-        url = f"{self._base_url}/agents/agent-one/invoke"
+        url = f"{self._base_url}{route}"
         try:
             async with httpx.AsyncClient(timeout=self._timeout_seconds) as client:
                 response = await client.post(url, json=payload)

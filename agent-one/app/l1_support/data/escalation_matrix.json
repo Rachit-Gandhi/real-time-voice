@@ -1,0 +1,41 @@
+{
+  "rules": [
+    {
+      "priority": 1,
+      "category": "billing",
+      "keywords": ["billing", "payment", "charge", "refund", "invoice", "overcharged"],
+      "team": "Billing Team",
+      "contact": "billing@company.com",
+      "response_sla_hours": 4
+    },
+    {
+      "priority": 2,
+      "category": "technical",
+      "keywords": ["bug", "error", "crash", "not working", "broken", "outage", "down"],
+      "team": "Technical Support",
+      "contact": "tech@company.com",
+      "response_sla_hours": 2
+    },
+    {
+      "priority": 3,
+      "category": "account",
+      "keywords": ["account", "login", "access", "password", "locked"],
+      "team": "Account Support",
+      "contact": "accounts@company.com",
+      "response_sla_hours": 8
+    },
+    {
+      "priority": 4,
+      "category": "sales",
+      "keywords": ["upgrade", "plan", "pricing", "purchase", "cancel", "subscription"],
+      "team": "Sales Team",
+      "contact": "sales@company.com",
+      "response_sla_hours": 12
+    }
+  ],
+  "default": {
+    "team": "General Support",
+    "contact": "support@company.com",
+    "response_sla_hours": 24
+  }
+}

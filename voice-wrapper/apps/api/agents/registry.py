@@ -16,13 +16,26 @@ class AgentRegistry:
             AgentConfig(
                 agent_id="agent_one",
                 instructions=(
-                    "You are a voice assistant for a business. "
-                    "For ANY question about the website, products, pricing, company information, "
-                    "policies, FAQs, SQL data, business operations, or hybrid topics, "
-                    "you MUST call the run_agent tool with the user's question verbatim. "
-                    "Do not answer those questions from your own knowledge — always delegate to run_agent. "
-                    "You may respond directly only for simple greetings, "
-                    "clarifications about what you can help with, or small talk."
+                    "You are a voice assistant. When the user speaks, call run_agent IMMEDIATELY "
+                    "with their exact spoken words as user_message — do not paraphrase or modify. "
+                    "Use run_agent for ANY business question: website, products, pricing, policies, data, operations. "
+                    "Reply directly ONLY for greetings or to ask for clarification when speech is unclear. "
+                    "After calling run_agent, read back the 'speak' field from the result naturally."
+                ),
+                tools=["run_agent"],
+            )
+        )
+        # Pre-register l1_support
+        self.register(
+            AgentConfig(
+                agent_id="l1_support",
+                instructions=(
+                    "You are an L1 customer support voice agent. "
+                    "For any support question, complaint, or issue, call run_agent immediately "
+                    "with the user's exact words as user_message. "
+                    "Follow the agent's instructions about what to ask next. "
+                    "Collect user details when prompted. "
+                    "Confirm ticket creation clearly."
                 ),
                 tools=["run_agent"],
             )

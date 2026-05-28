@@ -23,6 +23,9 @@ def _call_sql(state: AgentOneState, database_url: str) -> AgentOneState:
     return {**state, "api_action": "sql_query", "sql_result": result}
 
 
+_ORDER_KEYWORDS = ("order", "tracking", "shipment", "delivery", "parcel", "dispatch", "shipped")
+
+
 def _call_mock(state: AgentOneState) -> AgentOneState:
     message = state.get("user_message", "").lower()
     context = state.get("context") or {}
@@ -37,8 +40,18 @@ def _call_mock(state: AgentOneState) -> AgentOneState:
     elif "customer" in message or "account" in message or "plan" in message:
         action = "get_customer"
         api_result = _TOOLS.get_customer(customer_id)
-    else:
+    elif any(kw in message for kw in _ORDER_KEYWORDS):
         action = "get_order_status"
         api_result = _TOOLS.get_order_status(extract_order_id(message))
+    else:
+        # Query requires a real database — no mock data available for it
+        return {
+            **state,
+            "api_action": "no_database",
+            "api_result": {
+                "tool": "no_database",
+                "data": {},
+            },
+        }
 
     return {**state, "api_action": action, "api_result": api_result}

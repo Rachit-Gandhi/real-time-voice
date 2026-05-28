@@ -23,7 +23,7 @@ def _route_after_retrieval(state: AgentOneState) -> str:
     return "answer_composer"
 
 
-def build_graph():
+def build_graph(checkpointer=None):
     g = StateGraph(AgentOneState)
     g.add_node("normalize", normalize)
     g.add_node("intent_router", route_intent)
@@ -47,4 +47,4 @@ def build_graph():
     g.add_edge("answer_composer", END)
     g.add_edge("fallback", END)
 
-    return g.compile()
+    return g.compile(checkpointer=checkpointer)
