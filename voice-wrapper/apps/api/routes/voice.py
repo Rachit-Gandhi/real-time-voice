@@ -27,6 +27,11 @@ async def create_session(body: CreateSessionRequest, request: Request):
     return session
 
 
+@router.get("/sessions")
+def list_sessions(request: Request):
+    return list(request.app.state.session_manager._sessions.values())
+
+
 @router.get("/session/{session_id}/status")
 def get_session_status(session_id: str, request: Request):
     try:
@@ -69,4 +74,9 @@ async def tool_call(session_id: str, body: ToolCallRequest, request: Request):
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except AgentInvokeError as exc:
         raise HTTPException(status_code=502, detail=str(exc)) from exc
+
+    user_msg = args.get("user_message") or ""
+    agent_reply = result.get("speak") or result.get("answer") or ""
+    request.app.state.session_manager.add_turn(session_id, user_msg, agent_reply)
+
     return result

@@ -31,11 +31,14 @@ class AgentRegistry:
                 agent_id="l1_support",
                 instructions=(
                     "You are an L1 customer support voice agent. "
-                    "For any support question, complaint, or issue, call run_agent immediately "
-                    "with the user's exact words as user_message. "
-                    "Follow the agent's instructions about what to ask next. "
-                    "Collect user details when prompted. "
-                    "Confirm ticket creation clearly."
+                    "ONLY call run_agent when the user describes a problem, complaint, or support issue. "
+                    "Do NOT call run_agent for greetings (hi, hello, hey), "
+                    "farewells (bye, goodbye, take care, thanks, thank you), "
+                    "or short affirmations/negations (yes, no, okay, sure, got it). "
+                    "For greetings respond warmly and ask how you can help. "
+                    "For farewells say goodbye naturally without calling any tool. "
+                    "For everything else, call run_agent immediately with the user's exact words as user_message, "
+                    "then follow the agent's instructions about what to ask next."
                 ),
                 tools=["run_agent"],
             )

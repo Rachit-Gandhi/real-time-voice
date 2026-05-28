@@ -662,6 +662,15 @@
   // True between response.created and response.done — guards response.cancel
   let isAiResponding = false;
 
+  // Set when we've already committed text to the AI bubble for this turn.
+  // Prevents duplicates when both response.audio_transcript.done and response.done
+  // carry transcript (e.g. Whisper output transcription fires after response.done).
+  let aiTranscriptFinalized = false;
+
+  // Cleared on user speech_started so a pending handleToolCalls won't send
+  // response.create after the user has already interrupted.
+  let toolCallActive = false;
+
   // Session timer
   let timerInterval = null;
   let timerStart    = null;
@@ -890,10 +899,12 @@
     destroyViz();
     const audio = document.getElementById('remote-audio');
     audio.srcObject = null;
-    currentUserEl  = null;
-    currentAiEl    = null;
-    lastTranscript = '';
-    isAiResponding = false;
+    currentUserEl        = null;
+    currentAiEl          = null;
+    lastTranscript       = '';
+    isAiResponding       = false;
+    aiTranscriptFinalized = false;
+    toolCallActive       = false;
   }
 
   function setMicEnabled(enabled) {
@@ -924,6 +935,7 @@
       // User speech starts — interrupt any AI response
       case 'input_audio_buffer.speech_started':
         lastTranscript = '';
+        toolCallActive = false;   // cancel any in-flight tool call from sending response.create
         if (isAiResponding) {
           dc.send(JSON.stringify({ type: 'response.cancel' }));
           isAiResponding = false;
@@ -947,10 +959,11 @@
         hideViz();
         break;
 
-      // AI speech — don't create bubble here; response.audio_transcript.delta does it
-      // on demand so function-call responses (no audio) don't leave ghost bubbles
+      // AI speech — bubble is created lazily by transcript.delta so function-call
+      // responses (no audio) don't leave ghost bubbles.
       case 'response.created':
         isAiResponding = true;
+        aiTranscriptFinalized = false;
         startAiViz();
         break;
 
@@ -960,20 +973,53 @@
         break;
 
       case 'response.audio_transcript.done':
-        if (currentAiEl) {
+        if (currentAiEl && !aiTranscriptFinalized) {
           finaliseText(currentAiEl, event.transcript || '');
           currentAiEl = null;
+          aiTranscriptFinalized = true;
         }
         hideViz();
         break;
 
       // Tool calls & done
-      case 'response.done':
+      case 'response.done': {
         isAiResponding = false;
-        currentAiEl = null;         // safety: clear any unreceived transcript.done
+
+        // Fallback: if transcript delta events never fired (e.g. Whisper output
+        // transcription delivers after response.done, or the model skipped them),
+        // extract the transcript from the response output items now.
+        if (!aiTranscriptFinalized) {
+          for (const item of (event.response?.output || [])) {
+            if (item.type !== 'message' || item.role !== 'assistant') continue;
+            for (const part of (item.content || [])) {
+              const text = part.transcript || part.text || '';
+              if (text) {
+                if (!currentAiEl) currentAiEl = addMsg('ai', '');
+                finaliseText(currentAiEl, text);
+                aiTranscriptFinalized = true;
+              }
+            }
+          }
+        }
+
+        // Remove empty ghost bubble left by a function-call-only response.
+        if (currentAiEl) {
+          const bubble = currentAiEl.querySelector('.body');
+          if (!bubble?.textContent.trim()) {
+            currentAiEl.remove();
+            msgCount = Math.max(0, msgCount - 1);
+            const mc = document.getElementById('msg-count');
+            mc.textContent = msgCount ? `${msgCount} msg${msgCount !== 1 ? 's' : ''}` : '';
+          } else {
+            bubble.classList.remove('streaming');
+          }
+          currentAiEl = null;
+        }
+
         handleToolCalls(event.response?.output || []);
         hideViz();
         break;
+      }
 
       case 'error': {
         const errMsg = event.error?.message || JSON.stringify(event.error);
@@ -988,9 +1034,12 @@
   }
 
   async function handleToolCalls(outputs) {
-    for (const item of outputs) {
-      if (item.type !== 'function_call') continue;
+    const calls = outputs.filter(item => item.type === 'function_call');
+    if (!calls.length) return;
 
+    toolCallActive = true;
+
+    for (const item of calls) {
       let args = {};
       try { args = JSON.parse(item.arguments || '{}'); } catch {}
 
@@ -1017,6 +1066,9 @@
         outputPayload = JSON.stringify({ error: err.message });
       }
 
+      // User may have interrupted while we awaited the fetch — don't inject stale output.
+      if (!toolCallActive) break;
+
       dc.send(JSON.stringify({
         type: 'conversation.item.create',
         item: {
@@ -1025,7 +1077,12 @@
           output: outputPayload,
         },
       }));
+    }
+
+    // Only trigger a new response if the user hasn't interrupted.
+    if (toolCallActive) {
       dc.send(JSON.stringify({ type: 'response.create' }));
+      toolCallActive = false;
     }
   }
 
@@ -1086,9 +1143,11 @@
     document.getElementById('tool-badge').textContent = '0';
     document.getElementById('tool-badge').classList.remove('has-items');
     document.getElementById('tool-log').classList.remove('open');
-    currentUserEl = null;
-    currentAiEl   = null;
-    lastTranscript = '';
+    currentUserEl        = null;
+    currentAiEl          = null;
+    lastTranscript       = '';
+    aiTranscriptFinalized = false;
+    toolCallActive       = false;
   }
 
   // ── Tool log ──────────────────────────────────────────────────────────────

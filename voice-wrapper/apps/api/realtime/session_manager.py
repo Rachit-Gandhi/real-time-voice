@@ -37,6 +37,7 @@ class SessionManager:
             "status": "active",
             "started_at": datetime.now(UTC).isoformat(),
             "last_transcript": None,
+            "transcript": [],
             "active_tool_call": None,
             "realtime": realtime_session,
             "client_secret": client_secret,
@@ -57,3 +58,10 @@ class SessionManager:
     def update_transcript(self, session_id: str, transcript: str) -> None:
         session = self.get(session_id)
         session["last_transcript"] = transcript
+
+    def add_turn(self, session_id: str, user_message: str, agent_response: str) -> None:
+        session = self.get(session_id)
+        ts = datetime.now(UTC).isoformat()
+        session["last_transcript"] = user_message
+        session["transcript"].append({"role": "user", "text": user_message, "ts": ts})
+        session["transcript"].append({"role": "assistant", "text": agent_response, "ts": ts})

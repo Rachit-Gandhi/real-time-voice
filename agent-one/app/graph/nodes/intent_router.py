@@ -76,11 +76,20 @@ def classify_intent(message: str) -> str | None:
         "about us",
         "contact",
         "website",
+        "site",
+        "page",
         "faq",
         "help",
         "hours",
         "location",
         "return",
+        "not working",
+        "broken",
+        "down",
+        "issue",
+        "problem",
+        "error",
+        "support",
     )
     unsupported_terms = ("weather", "sports", "joke", "recipe", "movie")
 

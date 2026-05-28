@@ -167,10 +167,56 @@ with sessions_tab:
     st.subheader("Voice Session Inspector")
     st.caption(
         f"Open the voice console at **{wrapper_url}**, start a call, "
-        "then paste the session ID here to inspect its state."
+        "then select or paste a session ID below to inspect its state."
     )
 
-    session_id_input = st.text_input("Session ID", placeholder="Paste session_id from the voice console")
+    # ── List all sessions ─────────────────────────────────────────────────────
+    if "selected_session_id" not in st.session_state:
+        st.session_state.selected_session_id = ""
+
+    col_list, _ = st.columns([1, 3])
+    do_list = col_list.button("📋 List All Sessions", use_container_width=True)
+
+    if do_list:
+        try:
+            r = httpx.get(f"{wrapper_url}/voice/sessions", timeout=5)
+            r.raise_for_status()
+            sessions = r.json()
+
+            if not sessions:
+                st.info("No sessions found.")
+            else:
+                st.write(f"**{len(sessions)} session(s):**")
+                for s in sessions:
+                    sid = s.get("session_id", "")
+                    status = s.get("status", "unknown")
+                    agent = s.get("agent_id", "")
+                    user = s.get("user_id", "")
+                    started = (s.get("started_at") or "")[:19]
+                    badge = "🟢" if status == "active" else "⚫"
+
+                    col_info, col_select = st.columns([5, 1])
+                    col_info.markdown(
+                        f"{badge} `{sid}` &nbsp;·&nbsp; **{agent}** &nbsp;·&nbsp; "
+                        f"user: `{user}` &nbsp;·&nbsp; {started}"
+                    )
+                    if col_select.button("Select", key=f"sel_{sid}"):
+                        st.session_state.selected_session_id = sid
+                        st.rerun()
+
+        except httpx.ConnectError:
+            st.error(f"Cannot reach voice-wrapper at **{wrapper_url}** — is it running?")
+        except Exception as exc:
+            st.error(f"Error: {exc}")
+
+    st.divider()
+
+    # ── Inspect a specific session ────────────────────────────────────────────
+    session_id_input = st.text_input(
+        "Session ID",
+        value=st.session_state.selected_session_id,
+        placeholder="Paste or select a session_id above",
+    )
 
     col_fetch, col_end = st.columns([1, 1])
     do_fetch = col_fetch.button("🔍 Fetch", disabled=not session_id_input)
@@ -195,12 +241,32 @@ with sessions_tab:
                     st.info(f"Status: **{status}**")
 
                 c1, c2 = st.columns(2)
+                c1.write(f"**Session ID:** `{data.get('session_id')}`")
                 c1.write(f"**Agent:** `{data.get('agent_id')}`")
                 c1.write(f"**User:** `{data.get('user_id')}`")
                 c2.write(f"**Started:** `{data.get('started_at')}`")
 
-                if data.get("last_transcript"):
-                    st.write("**Last transcript:**")
+                turns = data.get("transcript") or []
+                if turns:
+                    st.write(f"**Conversation ({len(turns)} turns):**")
+                    for turn in turns:
+                        role = turn.get("role", "")
+                        text = turn.get("text", "")
+                        ts   = (turn.get("ts") or "")[:19]
+                        if role == "user":
+                            st.markdown(
+                                f"<div style='text-align:left; color:#3dd68c; margin:4px 0'>"
+                                f"<small>{ts}</small><br><b>You:</b> {text}</div>",
+                                unsafe_allow_html=True,
+                            )
+                        else:
+                            st.markdown(
+                                f"<div style='text-align:right; color:#e8533a; margin:4px 0'>"
+                                f"<small>{ts}</small><br><b>Agent:</b> {text}</div>",
+                                unsafe_allow_html=True,
+                            )
+                elif data.get("last_transcript"):
+                    st.write("**Last user message:**")
                     st.info(data["last_transcript"])
 
                 with st.expander("Full session JSON"):
@@ -219,6 +285,7 @@ with sessions_tab:
             )
             r.raise_for_status()
             st.success("Session ended.")
+            st.session_state.selected_session_id = ""
         except httpx.ConnectError:
             st.error(f"Cannot reach voice-wrapper at **{wrapper_url}** — is it running?")
         except Exception as exc:
