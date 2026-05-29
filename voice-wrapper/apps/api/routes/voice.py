@@ -11,6 +11,7 @@ router = APIRouter(prefix="/voice", tags=["voice"])
 class CreateSessionRequest(BaseModel):
     agent_id: str
     user_id: str
+    context: dict | None = None
 
 
 @router.post("/session")
@@ -19,6 +20,7 @@ async def create_session(body: CreateSessionRequest, request: Request):
         session = await request.app.state.session_manager.create(
             agent_id=body.agent_id,
             user_id=body.user_id,
+            context=body.context,
         )
     except KeyError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
@@ -66,7 +68,7 @@ async def tool_call(session_id: str, body: ToolCallRequest, request: Request):
         "user_message": body.args.get("user_message") or body.args.get("message"),
         "session_id": body.args.get("session_id") or session_id,
         "user_id": body.args.get("user_id") or session["user_id"],
-        "context": body.args.get("context"),
+        "context": body.args.get("context") or session.get("context"),
     }
     try:
         result = await router_instance.dispatch(tool_name=body.tool_name, args=args)

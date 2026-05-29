@@ -11,7 +11,12 @@ class SessionManager:
         self._realtime_client = realtime_client
         self._registry = registry or AgentRegistry()
 
-    async def create(self, agent_id: str, user_id: str) -> dict:
+    async def create(
+        self,
+        agent_id: str,
+        user_id: str,
+        context: dict | None = None,
+    ) -> dict:
         agent_config = self._registry.get(agent_id)
         realtime_session = None
         client_secret = None
@@ -34,6 +39,7 @@ class SessionManager:
             "session_id": session_id,
             "agent_id": agent_id,
             "user_id": user_id,
+            "context": context or {},
             "status": "active",
             "started_at": datetime.now(UTC).isoformat(),
             "last_transcript": None,

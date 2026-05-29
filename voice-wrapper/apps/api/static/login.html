@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Worldwide TechServices — Login</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      height: 100%;
+      font-family: Arial, Helvetica, sans-serif;
+    }
+
+    body {
+      min-height: 100dvh;
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      padding: 48px 16px 24px;
+      background:
+        linear-gradient(rgba(18, 32, 52, 0.15), rgba(18, 32, 52, 0.25)),
+        url("") center top/cover no-repeat fixed;
+    }
+
+    .login-card {
+      width: 100%;
+      max-width: 520px;
+      background: #fff;
+      border-radius: 4px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
+      padding: 28px 36px 18px;
+    }
+
+    .logo-row {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      margin-bottom: 28px;
+    }
+
+    .logo-globe {
+      width: 56px;
+      height: 56px;
+      flex-shrink: 0;
+    }
+
+    .logo-text .worldwide {
+      font-size: 28px;
+      font-weight: 700;
+      color: #1a3a6b;
+      letter-spacing: -0.5px;
+      line-height: 1.05;
+    }
+
+    .logo-text .techservices {
+      font-size: 22px;
+      font-style: italic;
+      font-weight: 400;
+      color: #1a3a6b;
+      margin-top: 2px;
+    }
+
+    .field-row {
+      display: grid;
+      grid-template-columns: 88px 1fr;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+
+    .field-row label {
+      font-size: 13px;
+      color: #111;
+      text-align: left;
+    }
+
+    .field-row input {
+      width: 100%;
+      padding: 6px 8px;
+      font-size: 14px;
+      font-family: inherit;
+      border: 1px solid #b8b8b8;
+      background: #ffffe8;
+      outline: none;
+    }
+
+    .field-row input:focus {
+      border-color: #4aace8;
+      box-shadow: 0 0 0 2px rgba(74, 172, 232, 0.25);
+    }
+
+    #error-msg {
+      display: none;
+      margin: 4px 0 12px 98px;
+      font-size: 12px;
+      color: #c0392b;
+    }
+
+    .btn-login {
+      display: block;
+      width: calc(100% - 98px);
+      margin-left: 98px;
+      margin-top: 6px;
+      padding: 8px 12px;
+      border: none;
+      border-radius: 3px;
+      background: #4aace8;
+      color: #fff;
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+
+    .btn-login:hover:not(:disabled) { background: #3a9ad8; }
+    .btn-login:disabled { opacity: 0.65; cursor: default; }
+
+    .btn-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      width: calc(100% - 98px);
+      margin: 10px 0 0 98px;
+    }
+
+    .btn-secondary {
+      padding: 7px 10px;
+      border: none;
+      border-radius: 3px;
+      background: #4aace8;
+      color: #fff;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+
+    .btn-secondary:hover { background: #3a9ad8; }
+
+    .version {
+      margin-top: 22px;
+      text-align: center;
+      font-size: 11px;
+      color: #888;
+    }
+  </style>
+</head>
+<body>
+  <div class="login-card">
+    <div class="logo-row">
+      <svg class="logo-globe" viewBox="0 0 64 64" aria-hidden="true">
+        <circle cx="32" cy="32" r="30" fill="#e8f4fc"/>
+        <ellipse cx="32" cy="32" rx="28" ry="12" fill="none" stroke="#2d7dd2" stroke-width="1.2"/>
+        <ellipse cx="32" cy="32" rx="12" ry="28" fill="none" stroke="#2d7dd2" stroke-width="1.2"/>
+        <circle cx="22" cy="24" r="3.5" fill="#2d7dd2"/>
+        <circle cx="38" cy="18" r="2.5" fill="#3cb878"/>
+        <circle cx="44" cy="30" r="4" fill="#2d7dd2"/>
+        <circle cx="28" cy="38" r="2" fill="#3cb878"/>
+        <circle cx="18" cy="42" r="3" fill="#3cb878"/>
+        <circle cx="40" cy="44" r="2.5" fill="#2d7dd2"/>
+        <circle cx="48" cy="22" r="2" fill="#3cb878"/>
+      </svg>
+      <div class="logo-text">
+        <div class="worldwide">worldwide</div>
+        <div class="techservices">TechServices</div>
+      </div>
+    </div>
+
+    <form id="login-form" autocomplete="on">
+      <div class="field-row">
+        <label for="user-id">UserID</label>
+        <input id="user-id" name="user_id" type="text" value="dpscript" autocomplete="username" required />
+      </div>
+      <div class="field-row">
+        <label for="password">Password</label>
+        <input id="password" name="password" type="password" autocomplete="current-password" required />
+      </div>
+      <div id="error-msg"></div>
+      <button class="btn-login" id="btn-login" type="submit">Login</button>
+      <div class="btn-row">
+        <button class="btn-secondary" type="button" disabled title="Not available">Forgot Password</button>
+        <button class="btn-secondary" type="button" disabled title="Not available">Change Password</button>
+      </div>
+    </form>
+
+    <div class="version">Version 7.19.0124</div>
+  </div>
+
+  <script src="/static/auth.js"></script>
+  <script>
+    'use strict';
+
+    if (WwtsAuth.getAuthContext()) {
+      window.location.replace('/console');
+    }
+
+    const form = document.getElementById('login-form');
+    const errorEl = document.getElementById('error-msg');
+    const btnLogin = document.getElementById('btn-login');
+
+    function showError(msg) {
+      errorEl.textContent = msg;
+      errorEl.style.display = 'block';
+    }
+
+    function clearError() {
+      errorEl.textContent = '';
+      errorEl.style.display = 'none';
+    }
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      clearError();
+      btnLogin.disabled = true;
+      btnLogin.textContent = 'Logging in…';
+
+      try {
+        const resp = await fetch('/gtaccess/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            user_id: document.getElementById('user-id').value.trim(),
+            password: document.getElementById('password').value.trim(),
+          }),
+        });
+
+        const body = await resp.json().catch(() => ({}));
+
+        if (!resp.ok) {
+          const detail = body.detail;
+          const msg = typeof detail === 'string'
+            ? detail
+            : Array.isArray(detail)
+              ? detail.map(d => d.msg || d).join(', ')
+              : `Login failed (HTTP ${resp.status})`;
+          throw new Error(msg);
+        }
+
+        if (!body.success || body.rc !== 0) {
+          throw new Error(body.result_msg || `Login failed (rc=${body.rc})`);
+        }
+
+        WwtsAuth.setAuthContext(WwtsAuth.parseLoginResponse(body));
+        window.location.replace('/console');
+      } catch (err) {
+        showError(err.message || 'Login failed');
+      } finally {
+        btnLogin.disabled = false;
+        btnLogin.textContent = 'Login';
+      }
+    });
+  </script>
+</body>
+</html>

@@ -11,7 +11,7 @@ from dotenv import load_dotenv
 load_dotenv(_ROOT / ".env", override=False)
 
 from fastapi import FastAPI
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
 from apps.api.agents.registry import AgentRegistry
@@ -24,6 +24,7 @@ from app.routes.agent_one import router as agent_one_router
 from app.routes.l1_support import router as l1_support_router
 
 from agents.invoker import DirectAgentInvoker
+from auth import router as auth_router
 
 _STATIC = _ROOT / "voice-wrapper" / "apps" / "api" / "static"
 
@@ -45,9 +46,20 @@ app.state.agent_invoke_fn = _invoker.invoke
 app.include_router(voice_router)
 app.include_router(agent_one_router)
 app.include_router(l1_support_router)
+app.include_router(auth_router)
 app.mount("/static", StaticFiles(directory=str(_STATIC)), name="static")
 
 
 @app.get("/", include_in_schema=False)
-def index():
+def root():
+    return RedirectResponse(url="/login", status_code=302)
+
+
+@app.get("/login", include_in_schema=False)
+def login_page():
+    return FileResponse(str(_STATIC / "login.html"))
+
+
+@app.get("/console", include_in_schema=False)
+def console_page():
     return FileResponse(str(_STATIC / "index.html"))

@@ -81,7 +81,17 @@ async def test_create_passes_tools_to_realtime_client():
 
 
 @pytest.mark.asyncio
-async def test_create_without_realtime_client_has_no_client_secret():
+async def test_create_stores_context(mgr):
+    ctx = {"wwts_session": 45270812, "env": "QA"}
+    session = await mgr.create(agent_id="agent_one", user_id="dpscript", context=ctx)
+    assert session["context"] == ctx
+    assert mgr.get(session["session_id"])["context"] == ctx
+
+
+@pytest.mark.asyncio
+async def test_create_without_context_defaults_empty(mgr):
+    session = await mgr.create(agent_id="agent_one", user_id="u1")
+    assert session["context"] == {}
     mgr = SessionManager(realtime_client=None)
     session = await mgr.create(agent_id="agent_one", user_id="u1")
     assert session["client_secret"] is None

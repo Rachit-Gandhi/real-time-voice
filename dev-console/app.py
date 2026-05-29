@@ -29,7 +29,7 @@ with st.sidebar:
         st.rerun()
 
     st.divider()
-    st.caption("Voice console → http://localhost:8000")
+    st.caption("Voice console → http://localhost:8000/console")
 
 # ── Session state ─────────────────────────────────────────────────────────────
 if "chat_history" not in st.session_state:

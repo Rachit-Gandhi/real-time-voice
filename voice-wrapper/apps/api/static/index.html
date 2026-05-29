@@ -197,6 +197,29 @@
     }
 
     #user-id { width: 120px; }
+    #user-id:read-only {
+      opacity: 0.85;
+      cursor: default;
+    }
+
+    .btn-logout {
+      background: transparent;
+      color: var(--muted);
+      border: 1px solid var(--border);
+      font-size: 11px;
+      padding: 5px 10px;
+    }
+    .btn-logout:hover {
+      color: var(--text);
+      border-color: var(--muted);
+    }
+
+    .auth-user {
+      font-family: 'Fira Code', monospace;
+      font-size: 11px;
+      color: var(--muted);
+      letter-spacing: 0.03em;
+    }
 
     .v-sep {
       width: 1px;
@@ -564,6 +587,8 @@
     <span class="brand-sub">voice agent console</span>
   </div>
   <div class="header-right">
+    <span class="auth-user" id="auth-user"></span>
+    <button class="btn-logout" type="button" onclick="logout()">Logout</button>
     <span id="session-timer"></span>
     <div class="status-pill">
       <span id="status-dot" class="dot disconnected"></span>
@@ -578,7 +603,7 @@
 <!-- ── Controls ──────────────────────────────────────────────────────── -->
 <section id="controls">
   <span class="ctrl-label">User</span>
-  <input id="user-id" type="text" value="user-1" placeholder="User ID" />
+  <input id="user-id" type="text" value="" placeholder="User ID" readonly />
   <span class="ctrl-label">Agent</span>
   <select id="agent-id">
     <option value="agent_one">agent_one</option>
@@ -642,8 +667,15 @@
 
 <audio id="remote-audio" autoplay playsinline></audio>
 
+<script src="/static/auth.js"></script>
 <script>
   'use strict';
+
+  if (!WwtsAuth.requireAuth('/login')) {
+    // Redirecting to login — handlers below stay global for authenticated loads.
+  }
+
+  const authContext = WwtsAuth.getAuthContext();
 
   // ── State ────────────────────────────────────────────────────────────────
   let pc           = null;
@@ -782,6 +814,7 @@
         body: JSON.stringify({
           agent_id: document.getElementById('agent-id').value,
           user_id:  document.getElementById('user-id').value,
+          context:  buildSessionContext(),
         }),
       });
 
@@ -1209,6 +1242,30 @@
       .replace(/</g, '&lt;')
       .replace(/>/g, '&gt;')
       .replace(/"/g, '&quot;');
+  }
+
+  function buildSessionContext() {
+    if (!authContext) return {};
+    return {
+      wwts_session: authContext.session,
+      user_id: authContext.userId,
+      env: authContext.env,
+      source: authContext.source,
+      version: authContext.version,
+      expire_days: authContext.expireDays,
+    };
+  }
+
+  if (authContext) {
+    document.getElementById('user-id').value = authContext.userId || '';
+    document.getElementById('auth-user').textContent =
+      [authContext.userId, authContext.env].filter(Boolean).join(' · ');
+  }
+
+  function logout() {
+    if (sessionId) stopCall();
+    WwtsAuth.clearAuthContext();
+    window.location.replace('/login');
   }
 </script>
 </body>
