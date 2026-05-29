@@ -36,7 +36,7 @@ if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
 
 # ── Tabs ──────────────────────────────────────────────────────────────────────
-chat_tab, ingest_tab, sessions_tab = st.tabs(["💬 Chat", "🌐 Ingest", "🎙️ Sessions"])
+chat_tab, ingest_tab, sessions_tab, tickets_tab = st.tabs(["💬 Chat", "🌐 Ingest", "🎙️ Sessions", "🎫 Tickets"])
 
 INTENT_ICON = {
     "website_qa":    "🔵",
@@ -290,3 +290,99 @@ with sessions_tab:
             st.error(f"Cannot reach voice-wrapper at **{wrapper_url}** — is it running?")
         except Exception as exc:
             st.error(f"Error: {exc}")
+
+
+# ── Tickets tab ───────────────────────────────────────────────────────────────
+_STATUS_OPTIONS = ["open", "in_progress", "resolved", "closed"]
+_STATUS_BADGE = {
+    "open": "🟠",
+    "in_progress": "🔵",
+    "resolved": "🟢",
+    "closed": "⚫",
+}
+
+with tickets_tab:
+    st.subheader("L1 Support Tickets")
+
+    col_refresh, col_search = st.columns([1, 3])
+    do_refresh = col_refresh.button("🔄 Refresh", use_container_width=True)
+    search_emp = col_search.text_input("Filter by employee number", placeholder="e.g. EMP-1234")
+
+    if "tickets_data" not in st.session_state:
+        st.session_state.tickets_data = []
+
+    if do_refresh or (not st.session_state.tickets_data):
+        try:
+            r = httpx.get(f"{agent_url}/agents/l1-support/tickets", timeout=10)
+            r.raise_for_status()
+            st.session_state.tickets_data = r.json()
+        except httpx.ConnectError:
+            st.error(f"Cannot reach agent-one at **{agent_url}** — is it running?")
+        except Exception as exc:
+            st.error(f"Error fetching tickets: {exc}")
+
+    tickets = st.session_state.tickets_data
+    if search_emp:
+        tickets = [t for t in tickets if (t.get("employee_number") or "").lower() == search_emp.strip().lower()]
+
+    if not tickets:
+        st.info("No tickets found." if not search_emp else f"No tickets for employee **{search_emp}**.")
+    else:
+        st.caption(f"Showing **{len(tickets)}** ticket(s)")
+
+        for ticket in tickets:
+            tid    = ticket.get("ticket_id", "")
+            status = ticket.get("status", "open")
+            badge  = _STATUS_BADGE.get(status, "⚪")
+            company = ticket.get("company_name", "")
+            app     = ticket.get("application_name", "")
+            name    = ticket.get("contact_name") or "—"
+            emp_no  = ticket.get("employee_number") or "—"
+            created = (ticket.get("created_at") or "")[:19]
+
+            label = f"{badge} `{tid}` · {company} / {app} · {name} (#{emp_no}) · {created} · **{status}**"
+
+            with st.expander(label):
+                col_left, col_right = st.columns(2)
+
+                col_left.write(f"**Ticket ID:** `{tid}`")
+                col_left.write(f"**Company:** {company}")
+                col_left.write(f"**Application:** {app}")
+                col_left.write(f"**Site:** {ticket.get('site_id') or '—'}")
+                col_left.write(f"**Product Ref:** {ticket.get('product_reference') or '—'}")
+
+                col_right.write(f"**Contact:** {name}")
+                col_right.write(f"**Employee #:** {emp_no}")
+                col_right.write(f"**Email:** {ticket.get('contact_email') or '—'}")
+                col_right.write(f"**Created:** {created}")
+                col_right.write(f"**Email sent:** {'✅' if ticket.get('email_sent') else '❌'}")
+
+                st.write("**Issue:**")
+                st.info(ticket.get("issue_description") or "—")
+
+                st.divider()
+                status_col, btn_col = st.columns([2, 1])
+                new_status = status_col.selectbox(
+                    "Change status",
+                    options=_STATUS_OPTIONS,
+                    index=_STATUS_OPTIONS.index(status) if status in _STATUS_OPTIONS else 0,
+                    key=f"status_{tid}",
+                )
+                if btn_col.button("Update", key=f"update_{tid}"):
+                    try:
+                        r = httpx.patch(
+                            f"{agent_url}/agents/l1-support/tickets/{tid}/status",
+                            json={"status": new_status},
+                            timeout=5,
+                        )
+                        r.raise_for_status()
+                        st.success(f"Ticket `{tid}` updated to **{new_status}**.")
+                        # Refresh the local cache
+                        for t in st.session_state.tickets_data:
+                            if t.get("ticket_id") == tid:
+                                t["status"] = new_status
+                        st.rerun()
+                    except httpx.ConnectError:
+                        st.error(f"Cannot reach agent-one at **{agent_url}**.")
+                    except Exception as exc:
+                        st.error(f"Update failed: {exc}")

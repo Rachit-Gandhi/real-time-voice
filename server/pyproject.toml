@@ -13,8 +13,12 @@ dependencies = [
     "beautifulsoup4>=4.12.0",
     "sqlalchemy>=2.0.0",
     "python-dotenv>=1.2.2",
+    "portals",
 ]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 asyncio_mode = "auto"
+
+[tool.uv.sources]
+portals = { git = "https://git.wwts.com/bots/portals.git", rev = "2d6167db4eb740420db7177d637b1cc7d16a5472" }
