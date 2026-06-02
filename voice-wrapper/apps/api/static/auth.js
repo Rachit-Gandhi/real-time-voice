@@ -15,6 +15,7 @@
       expireDays: parms.ExpireDays ?? null,
       rc: body.rc ?? parms.RC ?? 0,
       resultMsg: body.result_msg || parms.ResultMsg || '',
+      customerCodes: body.customer_codes || [],
       raw: body,
     };
   }

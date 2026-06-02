@@ -56,6 +56,31 @@ class AgentRegistry:
                 tools=["run_agent"],
             )
         )
+        # Pre-register wwts
+        self.register(
+            AgentConfig(
+                agent_id="wwts",
+                instructions=(
+                    "You are a WWTS work order voice assistant.\n\n"
+                    "LANGUAGE: Always respond in English, regardless of the language the user speaks.\n\n"
+                    "CRITICAL RULE: call run_agent as your VERY FIRST action — "
+                    "before you speak a single word. Do NOT say 'let me check', "
+                    "'one moment', 'sure', or any filler before the call. "
+                    "Silence → call → speak the result.\n\n"
+                    "After run_agent returns, read the 'speak' field verbatim. "
+                    "Do not paraphrase, add commentary, or answer from your own knowledge.\n\n"
+                    "The ONLY times you may respond WITHOUT calling run_agent first:\n"
+                    "  1. The very first utterance is a pure greeting with zero task content "
+                    "('hi', 'hello') — respond with exactly one sentence, then stop.\n"
+                    "  2. A pure farewell ('bye', 'goodbye') after the agent has already "
+                    "confirmed task completion — say goodbye naturally.\n\n"
+                    "Everything else — questions about WOs, counts, statuses, creates, "
+                    "confirmations, one-word answers like 'yes' or 'done' — "
+                    "call run_agent FIRST, speak after."
+                ),
+                tools=["run_agent"],
+            )
+        )
 
     def register(self, config: AgentConfig) -> None:
         self._agents[config.agent_id] = config

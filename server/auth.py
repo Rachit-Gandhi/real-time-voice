@@ -25,6 +25,8 @@ class LoginResponse(BaseModel):
     result_msg: str
     session: Optional[int] = None
     data: Dict[str, Any]
+    customer_codes: list[Dict[str, str]] = Field(default_factory=list)
+    # [{"code": "ACME", "name": "Acme Corp"}, ...]
 
 
 def init_wwits_environment() -> None:
@@ -68,10 +70,25 @@ def gtaccess_login(payload: LoginRequest) -> LoginResponse:
             detail=f"WWITS Access API returned an invalid response: {exc}",
         ) from exc
 
+    session_id = response.get("Session") if response.success else None
+
+    customer_codes: list[Dict[str, str]] = []
+    if response.success and session_id:
+        try:
+            cust_resp = GTAccess().UserCustomers(payload.user_id, session_id)
+            if cust_resp.success:
+                customer_codes = [
+                    {"code": c.Customer, "name": c.Name}
+                    for c in cust_resp.results()
+                ]
+        except Exception:
+            pass
+
     return LoginResponse(
         success=response.success,
         rc=response.RC,
         result_msg=response.ResultMsg,
-        session=response.get("Session") if response.success else None,
+        session=session_id,
         data=response.as_dict(),
+        customer_codes=customer_codes,
     )
