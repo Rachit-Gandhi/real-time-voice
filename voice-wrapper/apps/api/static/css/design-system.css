@@ -1,0 +1,53 @@
+/* ARIA — design tokens (obsidian signal desk) */
+:root {
+  --bg-deep:     #040506;
+  --bg:          #080a0e;
+  --surface:     #0e1118;
+  --surface-2:   #141922;
+  --surface-3:   #1a2130;
+  --border:      #252d3d;
+  --border-soft: rgba(37, 45, 61, 0.55);
+
+  --text:        #ebe6dc;
+  --text-soft:   #b8b0a4;
+  --muted:       #5c6578;
+
+  --accent:      #c9956a;
+  --accent-bright: #e4b88a;
+  --accent-glow: rgba(201, 149, 106, 0.22);
+  --accent-dim:  rgba(201, 149, 106, 0.12);
+
+  --user:        #6ec9a8;
+  --user-glow:   rgba(110, 201, 168, 0.18);
+  --user-bg:     #0a1512;
+
+  --ai:          #d4a574;
+  --ai-glow:     rgba(212, 165, 116, 0.16);
+  --ai-bg:       #14100c;
+
+  --success:     #6ec9a8;
+  --warn:        #e8c547;
+  --error:       #e07070;
+  --error-bg:    rgba(224, 112, 112, 0.08);
+
+  --radius-sm:   6px;
+  --radius:      10px;
+  --radius-lg:   16px;
+  --radius-xl:   24px;
+
+  --shadow-soft: 0 4px 24px rgba(0, 0, 0, 0.35);
+  --shadow-glow: 0 0 40px var(--accent-glow);
+
+  --font-display: 'Syne', system-ui, sans-serif;
+  --font-body:    'Literata', Georgia, serif;
+  --font-ui:      'DM Sans', system-ui, sans-serif;
+  --font-mono:    'IBM Plex Mono', ui-monospace, monospace;
+
+  --ease-out:    cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-spring: cubic-bezier(0.34, 1.4, 0.64, 1);
+
+  --header-h:    56px;
+  --session-h:   52px;
+  --composer-h:  64px;
+  --tool-w:      300px;
+}
