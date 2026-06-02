@@ -1,53 +1,45 @@
-/* ARIA — design tokens (obsidian signal desk) */
+/* ARIA — light voice product tokens */
 :root {
-  --bg-deep:     #040506;
-  --bg:          #080a0e;
-  --surface:     #0e1118;
-  --surface-2:   #141922;
-  --surface-3:   #1a2130;
-  --border:      #252d3d;
-  --border-soft: rgba(37, 45, 61, 0.55);
+  --white:       #FFFFFF;
+  --bg:          #FFFFFF;
+  --surface:     #F8FAFC;
+  --card:        #F1F5F9;
+  --border:      #E2E8F0;
+  --border-soft: #F1F5F9;
 
-  --text:        #ebe6dc;
-  --text-soft:   #b8b0a4;
-  --muted:       #5c6578;
+  --text:        #0F172A;
+  --text-secondary: #475569;
+  --muted:       #94A3B8;
 
-  --accent:      #c9956a;
-  --accent-bright: #e4b88a;
-  --accent-glow: rgba(201, 149, 106, 0.22);
-  --accent-dim:  rgba(201, 149, 106, 0.12);
+  --blue:        #2563EB;
+  --blue-soft:   #EFF6FF;
+  --blue-glow:   rgba(37, 99, 235, 0.25);
 
-  --user:        #6ec9a8;
-  --user-glow:   rgba(110, 201, 168, 0.18);
-  --user-bg:     #0a1512;
+  --green:       #22C55E;
+  --green-soft:  #F0FDF4;
+  --amber:       #F59E0B;
+  --amber-soft:  #FFFBEB;
+  --red:         #EF4444;
+  --red-soft:    #FEF2F2;
 
-  --ai:          #d4a574;
-  --ai-glow:     rgba(212, 165, 116, 0.16);
-  --ai-bg:       #14100c;
-
-  --success:     #6ec9a8;
-  --warn:        #e8c547;
-  --error:       #e07070;
-  --error-bg:    rgba(224, 112, 112, 0.08);
-
-  --radius-sm:   6px;
-  --radius:      10px;
-  --radius-lg:   16px;
+  --radius-sm:   12px;
+  --radius:      16px;
+  --radius-lg:   20px;
   --radius-xl:   24px;
+  --radius-full: 999px;
 
-  --shadow-soft: 0 4px 24px rgba(0, 0, 0, 0.35);
-  --shadow-glow: 0 0 40px var(--accent-glow);
+  --shadow-xs:   0 1px 2px rgba(15, 23, 42, 0.04);
+  --shadow-sm:   0 4px 12px rgba(15, 23, 42, 0.06);
+  --shadow-md:   0 8px 24px rgba(15, 23, 42, 0.08);
+  --shadow-dock: 0 12px 40px rgba(15, 23, 42, 0.12);
 
-  --font-display: 'Syne', system-ui, sans-serif;
-  --font-body:    'Literata', Georgia, serif;
-  --font-ui:      'DM Sans', system-ui, sans-serif;
-  --font-mono:    'IBM Plex Mono', ui-monospace, monospace;
+  --font-display: 'Plus Jakarta Sans', system-ui, sans-serif;
+  --font-body:    'Plus Jakarta Sans', system-ui, sans-serif;
+  --font-caption: 'Source Serif 4', Georgia, serif;
 
-  --ease-out:    cubic-bezier(0.22, 1, 0.36, 1);
-  --ease-spring: cubic-bezier(0.34, 1.4, 0.64, 1);
+  --header-h:    64px;
+  --dock-h:      88px;
+  --panel-w:     320px;
 
-  --header-h:    56px;
-  --session-h:   52px;
-  --composer-h:  64px;
-  --tool-w:      300px;
+  --ease:        cubic-bezier(0.22, 1, 0.36, 1);
 }

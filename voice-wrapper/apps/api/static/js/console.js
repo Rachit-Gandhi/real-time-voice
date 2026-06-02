@@ -1,23 +1,21 @@
 'use strict';
 
-if (!WwtsAuth.requireAuth('/login')) {
-  // Redirecting to login
-}
+if (!WwtsAuth.requireAuth('/login')) { /* redirecting */ }
 
 const authContext = WwtsAuth.getAuthContext();
 
-const EMPTY_STATE_HTML = `
-  <div class="empty-state" id="empty-state">
-    <div class="empty-orb" aria-hidden="true">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
-        <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
-        <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
-      </svg>
-    </div>
-    <h3>Ready when you are</h3>
-    <p>Choose an agent and start a call. Your microphone will connect to a realtime voice session with live transcription.</p>
-    <p class="empty-hint">Press Start call · or type below once connected</p>
-  </div>`;
+const AGENT_LABELS = {
+  wwts: { name: 'WWTS Support Agent', sub: 'Voice Assistant' },
+  agent_one: { name: 'Agent One', sub: 'General assistant' },
+  l1_support: { name: 'L1 Support', sub: 'IT support' },
+};
+
+const FRIENDLY_ERRORS = [
+  [/input_audio_transcription|session\.input_audio/i, 'Live captions are temporarily unavailable. Your call can continue.'],
+  [/microphone|getUserMedia/i, 'We need microphone access to start the call.'],
+  [/WebRTC|connection failed/i, 'The voice connection dropped. Please try again.'],
+  [/OPENAI|client_secret|SDP/i, 'Unable to connect to the voice service. Please try again shortly.'],
+];
 
 let pc = null;
 let dc = null;
@@ -25,7 +23,6 @@ let micStream = null;
 let sessionId = null;
 let toolCount = 0;
 let msgCount = 0;
-
 let currentUserEl = null;
 let currentAiEl = null;
 let lastTranscript = '';
@@ -33,39 +30,119 @@ let isAiResponding = false;
 let aiTranscriptFinalized = false;
 let toolCallActive = false;
 let isMuted = false;
-
 let timerInterval = null;
 let timerStart = null;
-
 let audioCtx = null;
 let analyser = null;
 let vizAnimId = null;
-
 let _holdCtx = null;
 let _holdGain = null;
 let _holdTimeout = null;
+let sessionWorkOrder = '';
+let sessionIntent = '';
 
-function setVoiceStrip(mode) {
-  const strip = document.getElementById('voice-strip');
-  if (!mode) {
-    strip.className = 'voice-strip';
-    return;
+function friendlyError(raw) {
+  const msg = String(raw || '');
+  for (const [re, text] of FRIENDLY_ERRORS) {
+    if (re.test(msg)) return text;
   }
-  strip.className = `voice-strip active ${mode}`;
+  if (msg.length > 120) return 'Something went wrong. Please try again.';
+  return msg;
+}
+
+function showToast(message, variant = '') {
+  const root = document.getElementById('toast-root');
+  const el = document.createElement('div');
+  el.className = `toast${variant ? ` ${variant}` : ''}`;
+  el.textContent = message;
+  root.appendChild(el);
+  setTimeout(() => {
+    el.classList.add('leaving');
+    setTimeout(() => el.remove(), 300);
+  }, 4500);
+}
+
+function showError(msg) {
+  showToast(friendlyError(msg), 'warn');
+}
+
+function clearError() { /* toasts only */ }
+
+function setAvatarState(state) {
+  const wrap = document.getElementById('avatar-wrap');
+  wrap.className = `avatar-wrap state-${state || 'idle'}`;
+  const labels = {
+    idle: 'Idle',
+    listening: 'Listening',
+    speaking: 'Speaking',
+    thinking: 'Thinking',
+  };
+  const status = labels[state] || 'Idle';
+  document.getElementById('agent-status').textContent = status;
+  document.getElementById('info-agent-state').textContent = status;
 }
 
 function setCallUI(inCall) {
-  document.getElementById('btn-start').classList.toggle('hidden', inCall);
-  document.getElementById('btn-stop').classList.toggle('visible', inCall);
-  document.getElementById('btn-mute').classList.toggle('visible', inCall);
+  const dock = document.getElementById('call-dock');
+  dock.classList.toggle('in-call', inCall);
+  document.getElementById('pre-call-settings').style.display = inCall ? 'none' : '';
+  const timer = document.getElementById('call-timer');
+  timer.classList.toggle('idle', !inCall);
+  if (!inCall) timer.textContent = 'Ready to connect';
 }
 
-function syncTranscriptState() {
-  const box = document.getElementById('transcript');
-  const hasMessages = msgCount > 0;
-  box.classList.toggle('has-messages', hasMessages);
-  const empty = document.getElementById('empty-state');
-  if (empty) empty.classList.toggle('hidden', hasMessages);
+function updateAgentDisplay() {
+  const id = document.getElementById('agent-id').value;
+  const meta = AGENT_LABELS[id] || { name: id, sub: 'Voice Assistant' };
+  document.getElementById('agent-display-name').textContent = meta.name;
+  document.querySelector('.agent-sub').textContent = meta.sub;
+}
+
+function setStatus(s) {
+  const dot = document.getElementById('status-dot');
+  dot.className = `conn-dot ${s}`;
+  const labels = {
+    connected: 'Connected',
+    connecting: 'Connecting…',
+    disconnected: 'Disconnected',
+    error: 'Connection issue',
+  };
+  document.getElementById('status-label').textContent = labels[s] || s;
+}
+
+function toggleInsightPanel() {
+  const panel = document.getElementById('insight-panel');
+  const open = panel.classList.toggle('open');
+  document.getElementById('panel-toggle').setAttribute('aria-expanded', String(open));
+  document.getElementById('panel-toggle').classList.toggle('shifted', open);
+}
+
+function toggleProfileMenu() {
+  document.getElementById('profile-menu').classList.toggle('open');
+}
+
+document.getElementById('profile-btn')?.addEventListener('click', (e) => {
+  e.stopPropagation();
+  toggleProfileMenu();
+});
+document.addEventListener('click', () => {
+  document.getElementById('profile-menu')?.classList.remove('open');
+});
+
+function hideCaptionPlaceholder() {
+  const ph = document.getElementById('caption-placeholder');
+  if (ph) ph.remove();
+}
+
+function fadeCaptions() {
+  const lines = document.querySelectorAll('#transcript .caption-line');
+  const n = lines.length;
+  lines.forEach((el, i) => {
+    el.classList.remove('faded', 'older');
+    const age = n - 1 - i;
+    if (age === 1) el.classList.add('faded');
+    if (age >= 2) el.classList.add('older');
+  });
 }
 
 function startHoldSound() {
@@ -74,7 +151,6 @@ function startHoldSound() {
   _holdGain = _holdCtx.createGain();
   _holdGain.gain.value = 0;
   _holdGain.connect(_holdCtx.destination);
-
   function beep() {
     const osc = _holdCtx.createOscillator();
     osc.type = 'sine';
@@ -82,7 +158,7 @@ function startHoldSound() {
     osc.connect(_holdGain);
     const now = _holdCtx.currentTime;
     _holdGain.gain.setValueAtTime(0, now);
-    _holdGain.gain.linearRampToValueAtTime(0.08, now + 0.04);
+    _holdGain.gain.linearRampToValueAtTime(0.06, now + 0.04);
     _holdGain.gain.linearRampToValueAtTime(0, now + 0.25);
     osc.start(now);
     osc.stop(now + 0.3);
@@ -99,17 +175,22 @@ function stopHoldSound() {
 
 function startTimer() {
   timerStart = Date.now();
+  const timer = document.getElementById('call-timer');
+  timer.classList.remove('idle');
   timerInterval = setInterval(() => {
     const s = Math.floor((Date.now() - timerStart) / 1000);
-    const mm = String(Math.floor(s / 60)).padStart(2, '0');
+    const hh = String(Math.floor(s / 3600)).padStart(2, '0');
+    const mm = String(Math.floor((s % 3600) / 60)).padStart(2, '0');
     const ss = String(s % 60).padStart(2, '0');
-    document.getElementById('session-timer').textContent = `${mm}:${ss}`;
+    timer.textContent = hh !== '00' ? `${hh}:${mm}:${ss}` : `${mm}:${ss}`;
   }, 1000);
 }
 
 function stopTimer() {
   if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
-  document.getElementById('session-timer').textContent = '';
+  const timer = document.getElementById('call-timer');
+  timer.classList.add('idle');
+  timer.textContent = 'Ready to connect';
 }
 
 function initViz(stream) {
@@ -131,47 +212,34 @@ function drawViz() {
   const ctx = canvas.getContext('2d');
   const buf = new Uint8Array(analyser.frequencyBinCount);
   analyser.getByteFrequencyData(buf);
-
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-  const N = Math.min(14, buf.length);
-  const barW = 4;
+  const barW = 3;
   const gap = 2;
-  for (let i = 0; i < N; i++) {
+  for (let i = 0; i < Math.min(12, buf.length); i++) {
     const val = buf[i] / 255;
-    const h = Math.max(3, val * canvas.height);
-    const x = i * (barW + gap);
-    const y = canvas.height - h;
-    const alpha = 0.35 + val * 0.65;
-    ctx.fillStyle = `rgba(110, 201, 168, ${alpha})`;
-    if (ctx.roundRect) {
-      ctx.beginPath();
-      ctx.roundRect(x, y, barW, h, 1);
-      ctx.fill();
-    } else {
-      ctx.fillRect(x, y, barW, h);
-    }
+    const h = Math.max(2, val * canvas.height);
+    ctx.fillStyle = `rgba(37, 99, 235, ${0.3 + val * 0.7})`;
+    ctx.fillRect(i * (barW + gap), canvas.height - h, barW, h);
   }
   vizAnimId = requestAnimationFrame(drawViz);
 }
 
 function startUserViz() {
-  document.getElementById('vs-label').textContent = 'Listening';
-  setVoiceStrip('user-speaking');
+  setAvatarState('listening');
   if (analyser && !vizAnimId) drawViz();
 }
 
 function startAiViz() {
   if (vizAnimId) { cancelAnimationFrame(vizAnimId); vizAnimId = null; }
-  document.getElementById('vs-label').textContent = 'Speaking';
-  setVoiceStrip('ai-speaking');
+  setAvatarState('speaking');
 }
 
 function hideViz() {
   if (vizAnimId) { cancelAnimationFrame(vizAnimId); vizAnimId = null; }
-  setVoiceStrip('');
+  if (!sessionId) setAvatarState('idle');
+  else if (!isAiResponding && !toolCallActive) setAvatarState('listening');
   const canvas = document.getElementById('viz-canvas');
-  const ctx = canvas.getContext('2d');
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height);
 }
 
 function destroyViz() {
@@ -182,8 +250,24 @@ function destroyViz() {
 
 function startProcessingViz() {
   if (vizAnimId) { cancelAnimationFrame(vizAnimId); vizAnimId = null; }
-  document.getElementById('vs-label').textContent = 'Processing';
-  setVoiceStrip('processing');
+  setAvatarState('thinking');
+  document.getElementById('info-active-tool').textContent = 'Running…';
+}
+
+function detectWorkOrder(text) {
+  const m = String(text).match(/\b[A-Z]{2}\d{6,}\b/i);
+  if (m) {
+    sessionWorkOrder = m[0].toUpperCase();
+    document.getElementById('info-work-order').textContent = sessionWorkOrder;
+  }
+}
+
+function detectIntent(text) {
+  const t = String(text).toLowerCase();
+  if (/work order|workorder/.test(t)) {
+    sessionIntent = 'Work order inquiry';
+    document.getElementById('info-intent').textContent = sessionIntent;
+  }
 }
 
 async function startCall() {
@@ -191,6 +275,7 @@ async function startCall() {
   setBtnEnabled('start', false);
   clearError();
   clearTranscript();
+  setAvatarState('thinking');
 
   try {
     const sessResp = await fetch('/voice/session', {
@@ -211,34 +296,25 @@ async function startCall() {
     const session = await sessResp.json();
     sessionId = session.session_id;
     const secret = session.client_secret;
-
-    document.getElementById('session-info').textContent =
-      `Session ${sessionId.slice(0, 8)}…`;
-
-    if (!secret) throw new Error('No client_secret — check OPENAI_API_KEY in voice-wrapper .env');
+    if (!secret) throw new Error('Voice service is not configured.');
 
     try {
       micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
     } catch {
-      throw new Error('Microphone access denied — please allow mic access and try again.');
+      throw new Error('Microphone access denied');
     }
 
     initViz(micStream);
-
     pc = new RTCPeerConnection();
-
     pc.ontrack = (e) => {
-      const audio = document.getElementById('remote-audio');
-      if (e.streams[0]) audio.srcObject = e.streams[0];
+      if (e.streams[0]) document.getElementById('remote-audio').srcObject = e.streams[0];
     };
-
     pc.onconnectionstatechange = () => {
-      if (pc?.connectionState === 'failed') showError('WebRTC connection failed.');
+      if (pc?.connectionState === 'failed') showError('WebRTC connection failed');
       if (pc?.connectionState === 'disconnected') stopCall();
     };
 
     micStream.getAudioTracks().forEach((t) => pc.addTrack(t, micStream));
-
     dc = pc.createDataChannel('oai-events');
     dc.addEventListener('open', onDataChannelOpen);
     dc.addEventListener('message', (e) => handleEvent(JSON.parse(e.data)));
@@ -269,8 +345,7 @@ async function startCall() {
     });
 
     if (!sdpResp.ok) {
-      const body = await sdpResp.text();
-      throw new Error(`OpenAI rejected SDP (${sdpResp.status}): ${body}`);
+      throw new Error(`Voice service connection failed (${sdpResp.status})`);
     }
 
     await pc.setRemoteDescription({ type: 'answer', sdp: await sdpResp.text() });
@@ -278,12 +353,16 @@ async function startCall() {
     setStatus('connected');
     startTimer();
     setCallUI(true);
+    setAvatarState('listening');
     document.getElementById('text-input-field').disabled = false;
     document.getElementById('btn-send-text').disabled = false;
+    document.getElementById('insight-panel').classList.add('open');
+    showToast('You’re connected. Start speaking anytime.');
   } catch (err) {
     showError(err.message);
     setStatus('error');
     setBtnEnabled('start', true);
+    setAvatarState('idle');
     cleanup();
   }
 }
@@ -296,15 +375,14 @@ function stopCall() {
   sessionId = null;
   stopTimer();
   setStatus('disconnected');
-  document.getElementById('session-info').textContent = '';
   setCallUI(false);
   isMuted = false;
-  const btnMute = document.getElementById('btn-mute');
-  btnMute.classList.remove('muted');
+  document.getElementById('btn-mute').classList.remove('muted');
   document.getElementById('text-input-field').disabled = true;
   document.getElementById('btn-send-text').disabled = true;
   setBtnEnabled('start', true);
-  hideViz();
+  setAvatarState('idle');
+  document.getElementById('info-active-tool').textContent = '—';
 }
 
 function cleanup() {
@@ -319,9 +397,6 @@ function cleanup() {
   isAiResponding = false;
   aiTranscriptFinalized = false;
   toolCallActive = false;
-  isMuted = false;
-  document.getElementById('text-input-field').disabled = true;
-  document.getElementById('btn-send-text').disabled = true;
   stopHoldSound();
 }
 
@@ -332,11 +407,7 @@ function setMicEnabled(enabled) {
 function toggleMute() {
   isMuted = !isMuted;
   setMicEnabled(!isMuted);
-  const btn = document.getElementById('btn-mute');
-  btn.classList.toggle('muted', isMuted);
-  btn.innerHTML = isMuted
-    ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><line x1="1" y1="1" x2="23" y2="23"/></svg> Unmute'
-    : '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/></svg> Mute';
+  document.getElementById('btn-mute').classList.toggle('muted', isMuted);
 }
 
 function sendTextMessage() {
@@ -344,25 +415,21 @@ function sendTextMessage() {
   const text = input.value.trim();
   if (!text || !sessionId || !dc || dc.readyState !== 'open') return;
   input.value = '';
-
   const userEl = addMsg('user', text);
   finaliseText(userEl, text);
   lastTranscript = text;
-
+  detectWorkOrder(text);
+  detectIntent(text);
   dc.send(JSON.stringify({
     type: 'conversation.item.create',
-    item: {
-      type: 'message',
-      role: 'user',
-      content: [{ type: 'input_text', text }],
-    },
+    item: { type: 'message', role: 'user', content: [{ type: 'input_text', text }] },
   }));
   dc.send(JSON.stringify({ type: 'response.create' }));
   input.focus();
 }
 
-document.getElementById('text-input-field').addEventListener('keydown', (event) => {
-  if (event.key === 'Enter' && sessionId) sendTextMessage();
+document.getElementById('text-input-field').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && sessionId) sendTextMessage();
 });
 
 function onDataChannelOpen() {
@@ -406,6 +473,8 @@ function handleEvent(event) {
         finaliseText(currentUserEl, lastTranscript);
         currentUserEl = null;
       }
+      detectWorkOrder(lastTranscript);
+      detectIntent(lastTranscript);
       hideViz();
       break;
 
@@ -431,7 +500,6 @@ function handleEvent(event) {
 
     case 'response.done': {
       isAiResponding = false;
-
       if (!aiTranscriptFinalized) {
         for (const item of (event.response?.output || [])) {
           if (item.type !== 'message' || item.role !== 'assistant') continue;
@@ -445,20 +513,16 @@ function handleEvent(event) {
           }
         }
       }
-
       if (currentAiEl) {
         const bubble = currentAiEl.querySelector('.body');
         if (!bubble?.textContent.trim()) {
           currentAiEl.remove();
           msgCount = Math.max(0, msgCount - 1);
-          updateMsgCount();
-          syncTranscriptState();
         } else {
           bubble.classList.remove('streaming');
         }
         currentAiEl = null;
       }
-
       handleToolCalls(event.response?.output || []);
       hideViz();
       break;
@@ -487,9 +551,9 @@ async function handleToolCalls(outputs) {
   for (const item of calls) {
     let args = {};
     try { args = JSON.parse(item.arguments || '{}'); } catch {}
-
     if (lastTranscript) args.user_message = lastTranscript;
 
+    document.getElementById('info-active-tool').textContent = formatToolName(item.name);
     addToolEntry('out', item.name, args.user_message || item.arguments);
 
     let outputPayload;
@@ -499,16 +563,16 @@ async function handleToolCalls(outputs) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ tool_name: item.name, args }),
       });
-
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
-      addToolEntry('in', item.name, data.speak || data.answer || JSON.stringify(data));
+      const summary = data.speak || data.answer || 'Completed';
+      addToolEntry('in', item.name, summary);
       outputPayload = JSON.stringify({
         answer: data.answer || data.speak || '',
         speak: data.speak || data.answer || '',
       });
     } catch (err) {
-      addToolEntry('err', item.name, err.message);
+      addToolEntry('err', item.name, 'Unable to complete this action');
       outputPayload = JSON.stringify({ error: err.message });
     }
 
@@ -525,6 +589,7 @@ async function handleToolCalls(outputs) {
   }
 
   stopHoldSound();
+  document.getElementById('info-active-tool').textContent = '—';
   hideViz();
 
   if (toolCallActive) {
@@ -533,76 +598,61 @@ async function handleToolCalls(outputs) {
   }
 }
 
+function formatToolName(name) {
+  const map = {
+    run_agent: 'Agent lookup',
+    search_knowledge: 'Knowledge search',
+  };
+  return map[name] || name.replace(/_/g, ' ');
+}
+
 function addMsg(role, text) {
+  hideCaptionPlaceholder();
   const box = document.getElementById('transcript');
-
   const wrap = document.createElement('div');
-  wrap.className = `msg ${role}`;
+  wrap.className = `caption-line ${role === 'user' ? 'user' : 'ai'}`;
 
-  const meta = document.createElement('div');
-  meta.className = 'msg-meta';
+  const label = document.createElement('span');
+  label.className = 'caption-label';
+  label.textContent = role === 'user' ? 'User' : 'Agent';
 
-  const badge = document.createElement('span');
-  badge.className = 'msg-badge';
-  badge.textContent = role === 'user' ? 'You' : 'Agent';
-
-  const ts = document.createElement('span');
-  ts.className = 'msg-ts';
-  ts.textContent = new Date().toLocaleTimeString([], {
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-  });
-
-  meta.appendChild(badge);
-  meta.appendChild(ts);
-
-  const bubble = document.createElement('div');
-  bubble.className = 'msg-bubble body streaming';
+  const bubble = document.createElement('p');
+  bubble.className = 'caption-text body streaming';
   bubble.textContent = text;
 
-  wrap.appendChild(meta);
+  wrap.appendChild(label);
   wrap.appendChild(bubble);
   box.appendChild(wrap);
   box.scrollTop = box.scrollHeight;
-
   msgCount++;
-  updateMsgCount();
-  syncTranscriptState();
-
+  fadeCaptions();
   return wrap;
 }
 
 function appendText(wrap, delta) {
   wrap.querySelector('.body').textContent += delta;
-  const box = document.getElementById('transcript');
-  box.scrollTop = box.scrollHeight;
+  document.getElementById('transcript').scrollTop = document.getElementById('transcript').scrollHeight;
 }
 
 function finaliseText(wrap, text) {
   const bubble = wrap.querySelector('.body');
   bubble.classList.remove('streaming');
   bubble.textContent = text;
-}
-
-function updateMsgCount() {
-  document.getElementById('msg-count').textContent =
-    msgCount ? `${msgCount} message${msgCount !== 1 ? 's' : ''}` : '';
+  fadeCaptions();
 }
 
 function clearTranscript() {
   const box = document.getElementById('transcript');
-  box.innerHTML = EMPTY_STATE_HTML;
-  box.classList.remove('has-messages');
+  box.innerHTML = '<p class="caption-placeholder" id="caption-placeholder">Live captions will appear here during your call.</p>';
   document.getElementById('tool-entries').innerHTML = '';
+  document.getElementById('timeline-empty').style.display = '';
   msgCount = 0;
   toolCount = 0;
-  updateMsgCount();
-  const badge = document.getElementById('tool-badge');
-  badge.textContent = '0';
-  badge.classList.remove('has-items');
-  document.getElementById('tool-panel').classList.remove('open');
-  document.getElementById('tool-toggle-fab').classList.remove('visible', 'has-items');
+  sessionWorkOrder = '';
+  sessionIntent = '';
+  document.getElementById('info-intent').textContent = '—';
+  document.getElementById('info-work-order').textContent = '—';
+  document.getElementById('info-active-tool').textContent = '—';
   currentUserEl = null;
   currentAiEl = null;
   lastTranscript = '';
@@ -610,64 +660,30 @@ function clearTranscript() {
   toolCallActive = false;
 }
 
-function toggleToolPanel() {
-  const panel = document.getElementById('tool-panel');
-  const open = panel.classList.toggle('open');
-  document.getElementById('tool-toggle-fab').setAttribute('aria-expanded', String(open));
-}
-
 function addToolEntry(dir, name, detail) {
   toolCount++;
-  const badge = document.getElementById('tool-badge');
-  badge.textContent = toolCount;
-  badge.classList.add('has-items');
+  document.getElementById('timeline-empty').style.display = 'none';
 
-  const fab = document.getElementById('tool-toggle-fab');
-  fab.classList.add('visible', 'has-items');
+  const card = document.createElement('article');
+  card.className = `timeline-card ${dir}`;
+  const ts = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  const title = formatToolName(name);
+  const summary = dir === 'out' ? 'Requested' : dir === 'in' ? 'Completed' : 'Issue';
 
-  const entry = document.createElement('div');
-  entry.className = 'tool-entry';
-  const ts = new Date().toLocaleTimeString([], {
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-  });
-  const arrowCls = dir === 'out' ? 'te-out' : dir === 'in' ? 'te-in' : 'te-err';
-  const arrow = dir === 'out' ? '→' : dir === 'in' ? '←' : '⚠';
+  card.innerHTML =
+    `<div class="timeline-card-head"><strong>${esc(title)}</strong><time>${esc(ts)}</time></div>` +
+    `<p><em>${esc(summary)}</em> — ${esc(String(detail).slice(0, 140))}</p>`;
 
-  entry.innerHTML =
-    `<span class="te-ts">${esc(ts)}</span> ` +
-    `<span class="${arrowCls}">${arrow}</span> ` +
-    `<span class="te-name">${esc(name)}</span>` +
-    `<span class="te-value"> ${esc(String(detail).slice(0, 120))}</span>`;
+  document.getElementById('tool-entries').prepend(card);
+  document.getElementById('insight-panel').classList.add('open');
 
-  const container = document.getElementById('tool-entries');
-  container.appendChild(entry);
-  container.scrollTop = container.scrollHeight;
-
-  if (toolCount === 1) {
-    document.getElementById('tool-panel').classList.add('open');
-    fab.setAttribute('aria-expanded', 'true');
+  if (dir === 'out') {
+    document.getElementById('info-active-tool').textContent = title;
   }
-}
-
-function setStatus(s) {
-  document.getElementById('status-dot').className = `status-dot ${s}`;
-  document.getElementById('status-label').textContent = s;
 }
 
 function setBtnEnabled(which, enabled) {
   document.getElementById(`btn-${which}`).disabled = !enabled;
-}
-
-function showError(msg) {
-  document.getElementById('error-text').textContent = msg;
-  document.getElementById('error-banner').classList.add('visible');
-}
-
-function clearError() {
-  document.getElementById('error-text').textContent = '';
-  document.getElementById('error-banner').classList.remove('visible');
 }
 
 function esc(s) {
@@ -691,17 +707,31 @@ function buildSessionContext() {
   };
 }
 
-if (authContext) {
+function initAuthUI() {
+  if (!authContext) return;
   document.getElementById('user-id').value = authContext.userId || '';
-  const label = [authContext.userId, authContext.env].filter(Boolean).join(' · ');
-  document.getElementById('auth-user').textContent = label;
-  document.getElementById('auth-chip').classList.add('visible');
+  const userLabel = authContext.userId || 'User';
+  document.getElementById('auth-user').textContent = userLabel;
+  document.getElementById('profile-initials').textContent =
+    userLabel.slice(0, 2).toUpperCase();
+
+  const env = (authContext.env || 'QA').toUpperCase();
+  const badge = document.getElementById('env-badge');
+  badge.textContent = env;
+  badge.classList.toggle('qa', /qa|staging|stg/i.test(env));
+  badge.classList.toggle('prod', /prod/i.test(env));
+
   if (authContext.session) {
     const sel = document.getElementById('agent-id');
     sel.value = 'wwts';
     sel.disabled = true;
   }
+  updateAgentDisplay();
 }
+
+document.getElementById('agent-id')?.addEventListener('change', updateAgentDisplay);
+
+initAuthUI();
 
 function logout() {
   if (sessionId) stopCall();
@@ -709,10 +739,9 @@ function logout() {
   window.location.replace('/login');
 }
 
-// Expose handlers for inline onclick attributes
 window.startCall = startCall;
 window.stopCall = stopCall;
 window.toggleMute = toggleMute;
 window.sendTextMessage = sendTextMessage;
-window.toggleToolPanel = toggleToolPanel;
+window.toggleInsightPanel = toggleInsightPanel;
 window.logout = logout;
