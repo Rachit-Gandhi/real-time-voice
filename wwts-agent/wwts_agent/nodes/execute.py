@@ -3,6 +3,7 @@ import re
 
 from wwts_agent.state import WWTSState
 from wwts_agent import api
+from wwts_agent.corrections import hydrate_state, sync_legacy_fields
 
 
 _SESSION_EXPIRED_MSG = (
@@ -23,19 +24,39 @@ def _session_expired_state(state: WWTSState) -> WWTSState:
 
 
 def _build_ts_issue_remark(state: WWTSState) -> str:
-    issue = (state.get("ts_issue") or "").strip() or "(issue not captured)"
-    name = (state.get("ts_name") or "").strip()
+    facts = state.get("facts") or {}
+    issue = (
+        ((facts.get("issue") or {}).get("value") if isinstance(facts.get("issue"), dict) else facts.get("issue"))
+        or state.get("ts_issue")
+        or ""
+    ).strip() or "(issue not captured)"
+    name = (
+        ((facts.get("contact_name") or {}).get("value") if isinstance(facts.get("contact_name"), dict) else facts.get("contact_name"))
+        or state.get("ts_name")
+        or ""
+    ).strip()
     who = f" (caller: {name})" if name else ""
     return f"User Comment{who}: {issue}"
 
 
 def _build_ts_analysis_remark(state: WWTSState, product_desc: str, product_ref: str) -> str:
-    device = product_desc or (state.get("ts_device") or "").strip() or product_ref or "the device"
+    facts = state.get("facts") or {}
+    issue = (
+        ((facts.get("issue") or {}).get("value") if isinstance(facts.get("issue"), dict) else facts.get("issue"))
+        or state.get("ts_issue")
+        or "n/a"
+    )
+    device_fact = (
+        (facts.get("device") or {}).get("value")
+        if isinstance(facts.get("device"), dict)
+        else facts.get("device")
+    )
+    device = product_desc or (device_fact or state.get("ts_device") or "").strip() or product_ref or "the device"
     head = f"AI Comment — analysis for {device}"
     if product_ref and product_desc:
         head += f" (ref {product_ref})"
     head += "."
-    parts = [head, f"Reported issue: {(state.get('ts_issue') or 'n/a').strip()}."]
+    parts = [head, f"Reported issue: {str(issue).strip()}."]
 
     troubleshoots = state.get("ts_troubleshoots") or []
     executed = int(state.get("ts_executed") or 0) or len(troubleshoots)
@@ -137,6 +158,7 @@ def _do_troubleshoot_post_create(
 
 
 def execute(state: WWTSState) -> WWTSState:
+    state = sync_legacy_fields(hydrate_state(dict(state)))
     stage = state.get("stage", "")
     user_id = state.get("user_id", "")
     context = state.get("context") or {}

@@ -30,6 +30,37 @@ async def test_dispatch_run_agent_with_mock_handler():
 
 
 @pytest.mark.asyncio
+async def test_dispatch_run_wwts_forces_wwts_agent_id():
+    from apps.api.realtime.tool_router import ToolRouter
+
+    async def mock_run_agent(agent_id, user_message, session_id, user_id=None, context=None):
+        return {
+            "answer": user_message,
+            "speak": user_message,
+            "agent_id": agent_id,
+            "session_id": session_id,
+            "user_id": user_id,
+            "context": context,
+        }
+
+    router = ToolRouter(agent_invoke_fn=mock_run_agent)
+    result = await router.dispatch(
+        tool_name="run_wwts",
+        args={
+            "agent_id": "agent_one",
+            "user_message": "List my work orders",
+            "session_id": "s1",
+            "user_id": "server_user",
+            "context": {"wwts_session": 45270812},
+        },
+    )
+
+    assert result["agent_id"] == "wwts"
+    assert result["user_id"] == "server_user"
+    assert result["context"] == {"wwts_session": 45270812}
+
+
+@pytest.mark.asyncio
 async def test_dispatch_unknown_tool_raises():
     """router.dispatch with unknown tool_name raises ValueError."""
     from apps.api.realtime.tool_router import ToolRouter

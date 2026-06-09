@@ -6,6 +6,7 @@ import re
 
 from wwts_agent import api
 from wwts_agent import faq
+from wwts_agent.corrections import apply_user_corrections, hydrate_state, sync_legacy_fields
 from wwts_agent.state import WWTSState
 
 _REQUIRED_CREATE = ["Product Reference", "Contact Name", "Contact Phone"]
@@ -1553,6 +1554,7 @@ def _apply_create_corrections(
 
 
 def converse(state: WWTSState) -> WWTSState:
+    state = hydrate_state(dict(state))
     stage = state.get("stage") or "greeting"
     intent = state.get("intent")
     context = state.get("context") or {}
@@ -1573,6 +1575,62 @@ def converse(state: WWTSState) -> WWTSState:
 
     has_customer_code = bool(customer_code) or bool(customer_codes)
     multi_codes = len(customer_codes) > 1
+
+    corrected_state, applied_corrections = apply_user_corrections(
+        state,
+        user_message,
+        customer_codes=customer_codes,
+    )
+    if applied_corrections:
+        state = corrected_state
+        stage = state.get("stage") or stage
+        intent = state.get("intent")
+        wo_number = state.get("wo_number")
+        search_filters = api._normalize_search_filters(dict(state.get("search_filters") or {}))
+        create_fields = _normalize_create_fields(dict(state.get("create_fields") or {}))
+        wo_detail = state.get("wo_detail")
+        changed_correction_fields = {c["field"] for c in applied_corrections}
+        if (
+            changed_correction_fields & {"customer_code", "model", "serial", "site_id", "cust_call"}
+            and stage in ("done", "intent", "collecting_search_criteria")
+            and api._has_search_criteria(search_filters, multi_codes)
+        ):
+            msg = _build_search_summary(search_filters)
+            messages.append({"role": "assistant", "content": msg})
+            return sync_legacy_fields(
+                {
+                    **state,
+                    "stage": "executing_list",
+                    "intent": "search_wo",
+                    "search_filters": search_filters,
+                    "wo_list": None,
+                    "messages": messages,
+                    "final_answer": msg,
+                    "speak": msg,
+                    "requires_more_info": False,
+                },
+                changed_fields=changed_correction_fields,
+            )
+        if (
+            "wo_number" in changed_correction_fields
+            and intent in ("get_wo", "get_wo_parts", "get_wo_labor", "get_wo_labor_activities", "get_site")
+            and wo_number
+        ):
+            msg = f"Got it. I will use work order {wo_number}."
+            messages.append({"role": "assistant", "content": msg})
+            return sync_legacy_fields(
+                {
+                    **state,
+                    "stage": "executing_get",
+                    "intent": "get_wo",
+                    "wo_number": wo_number,
+                    "messages": messages,
+                    "final_answer": msg,
+                    "speak": msg,
+                    "requires_more_info": False,
+                },
+                changed_fields=changed_correction_fields,
+            )
 
     # Laptop troubleshooting sub-flow (isolated early return). Continue it whenever
     # we're mid-flow; start it fresh only from an idle stage so it can't hijack an
@@ -2560,7 +2618,7 @@ def converse(state: WWTSState) -> WWTSState:
 
     messages.append({"role": "assistant", "content": response_text})
 
-    return {
+    return sync_legacy_fields({
         **state,
         "stage": new_stage,
         "intent": new_intent,
@@ -2580,7 +2638,7 @@ def converse(state: WWTSState) -> WWTSState:
         "speak": speak_text,
         "requires_more_info": new_stage not in _EXECUTING_STAGES
         and new_stage != "done",
-    }
+    })
 
 
 _LIST_KW  = {"list", "show", "how many", "count", "open", "pending", "orders",
@@ -3223,4 +3281,4 @@ def _fallback(
         result["intent"] = new_intent
     if sf:
         result["search_filters"] = sf
-    return result
+    return sync_legacy_fields(result)

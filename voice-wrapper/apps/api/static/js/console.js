@@ -6,8 +6,6 @@ const authContext = WwtsAuth.getAuthContext();
 
 const AGENT_LABELS = {
   wwts: { name: 'WWTS Support Agent', sub: 'Voice Assistant' },
-  agent_one: { name: 'Agent One', sub: 'General assistant' },
-  l1_support: { name: 'L1 Support', sub: 'IT support' },
 };
 
 const FRIENDLY_ERRORS = [
@@ -44,6 +42,32 @@ let chatMode = false;
 let chatThreadId = null;
 let chatBusy = false;
 
+function byId(id) {
+  return document.getElementById(id);
+}
+
+function setText(id, text) {
+  const el = byId(id);
+  if (el) el.textContent = text;
+}
+
+function setDisplay(id, value) {
+  const el = byId(id);
+  if (el) el.style.display = value;
+}
+
+function addClass(id, className) {
+  byId(id)?.classList.add(className);
+}
+
+function setActiveTool(text) {
+  setText('info-active-tool', text);
+}
+
+function getAgentId() {
+  return byId('agent-id')?.value || 'wwts';
+}
+
 function friendlyError(raw) {
   const msg = String(raw || '');
   for (const [re, text] of FRIENDLY_ERRORS) {
@@ -72,19 +96,22 @@ function showError(msg) {
 function clearError() { /* toasts only */ }
 
 function setAvatarState(state) {
-  const wrap = document.getElementById('avatar-wrap');
-  const statusEl = document.getElementById('agent-status');
+  const wrap = byId('avatar-wrap');
+  const statusEl = byId('agent-status');
   const labels = {
     idle: 'Idle',
     listening: 'Listening',
     speaking: 'Speaking',
     thinking: 'Thinking',
   };
-  document.getElementById('info-agent-state').textContent = labels[state] || 'Idle';
+  const label = labels[state] || 'Idle';
+  setText('info-agent-state', label);
+  setText('voice-rail-state', label);
 
-  const visual = (state === 'speaking' || state === 'thinking') ? state : 'idle';
-  wrap.className = `avatar-wrap state-${visual}`;
+  const visual = (state === 'speaking' || state === 'thinking' || state === 'listening') ? state : 'idle';
+  if (wrap) wrap.className = `avatar-wrap state-${visual}`;
 
+  if (!statusEl) return;
   statusEl.textContent = '';
   statusEl.className = 'agent-status';
   if (state === 'speaking') {
@@ -96,19 +123,20 @@ function setAvatarState(state) {
 }
 
 function setCallUI(inCall) {
-  const dock = document.getElementById('call-dock');
-  dock.classList.toggle('in-call', inCall);
-  document.getElementById('pre-call-settings').style.display = inCall ? 'none' : '';
-  const timer = document.getElementById('call-timer');
-  timer.classList.toggle('idle', !inCall);
-  if (!inCall) timer.textContent = 'Ready to connect';
+  const dock = byId('call-dock');
+  dock?.classList.toggle('in-call', inCall);
+  setDisplay('pre-call-settings', inCall ? 'none' : '');
+  const timer = byId('call-timer');
+  timer?.classList.toggle('idle', !inCall);
+  if (!inCall && timer) timer.textContent = 'Ready to connect';
 }
 
 function updateAgentDisplay() {
-  const id = document.getElementById('agent-id').value;
+  const id = getAgentId();
   const meta = AGENT_LABELS[id] || { name: id, sub: 'Voice Assistant' };
-  document.getElementById('agent-display-name').textContent = meta.name;
-  document.querySelector('.agent-sub').textContent = meta.sub;
+  setText('agent-display-name', meta.name);
+  const sub = document.querySelector('.agent-sub');
+  if (sub) sub.textContent = meta.sub;
 }
 
 function setStatus(s) {
@@ -124,9 +152,9 @@ function setStatus(s) {
 }
 
 function toggleInsightPanel() {
-  const panel = document.getElementById('insight-panel');
-  const open = panel.classList.toggle('open');
-  document.getElementById('panel-toggle').setAttribute('aria-expanded', String(open));
+  const panel = byId('insight-panel');
+  const open = panel?.classList.toggle('open') || false;
+  byId('panel-toggle')?.setAttribute('aria-expanded', String(open));
 }
 
 function toggleProfileMenu() {
@@ -242,14 +270,14 @@ function destroyViz() {
 function startProcessingViz() {
   if (vizAnimId) { cancelAnimationFrame(vizAnimId); vizAnimId = null; }
   setAvatarState('thinking');
-  document.getElementById('info-active-tool').textContent = 'Running…';
+  setActiveTool('Running…');
 }
 
 function detectWorkOrder(text) {
   const m = String(text).match(/\b[A-Z]{2}\d{6,}\b/i);
   if (m) {
     sessionWorkOrder = m[0].toUpperCase();
-    document.getElementById('info-work-order').textContent = sessionWorkOrder;
+    setText('info-work-order', sessionWorkOrder);
   }
 }
 
@@ -257,7 +285,7 @@ function detectIntent(text) {
   const t = String(text).toLowerCase();
   if (/work order|workorder/.test(t)) {
     sessionIntent = 'Work order inquiry';
-    document.getElementById('info-intent').textContent = sessionIntent;
+    setText('info-intent', sessionIntent);
   }
 }
 
@@ -273,7 +301,7 @@ async function startCall() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        agent_id: document.getElementById('agent-id').value,
+        agent_id: getAgentId(),
         user_id: document.getElementById('user-id').value,
         context: buildSessionContext(),
       }),
@@ -347,7 +375,7 @@ async function startCall() {
     setAvatarState('listening');
     document.getElementById('text-input-field').disabled = false;
     document.getElementById('btn-send-text').disabled = false;
-    document.getElementById('insight-panel').classList.add('open');
+    addClass('insight-panel', 'open');
     showToast('You’re connected. Start speaking anytime.');
   } catch (err) {
     showError(err.message);
@@ -372,7 +400,7 @@ function startChat() {
   document.getElementById('call-timer').textContent = 'Chat session';
   document.getElementById('text-input-field').disabled = false;
   document.getElementById('btn-send-text').disabled = false;
-  document.getElementById('insight-panel').classList.add('open');
+  addClass('insight-panel', 'open');
   setAvatarState('idle');
   // Let the backend agent open the conversation (greet + ask the caller's name).
   postChat('hello', { renderUser: false });
@@ -382,12 +410,12 @@ function startChat() {
 function applyAgentState(data) {
   if (data.intent) {
     sessionIntent = formatToolName(String(data.intent));
-    document.getElementById('info-intent').textContent = sessionIntent;
+    setText('info-intent', sessionIntent);
   }
   const wo = data.wo_number || data.created_wo_number;
   if (wo) {
     sessionWorkOrder = String(wo);
-    document.getElementById('info-work-order').textContent = sessionWorkOrder;
+    setText('info-work-order', sessionWorkOrder);
   }
   if (data.session_expired) {
     showError('Your WWTS session has expired. Please sign out and log in again.');
@@ -453,7 +481,7 @@ function stopCall() {
     document.getElementById('btn-send-text').disabled = true;
     setBtnEnabled('start', true);
     setAvatarState('idle');
-    document.getElementById('info-active-tool').textContent = '—';
+    setActiveTool('—');
     return;
   }
   if (sessionId) {
@@ -470,7 +498,7 @@ function stopCall() {
   document.getElementById('btn-send-text').disabled = true;
   setBtnEnabled('start', true);
   setAvatarState('idle');
-  document.getElementById('info-active-tool').textContent = '—';
+  setActiveTool('—');
 }
 
 function cleanup() {
@@ -664,7 +692,7 @@ async function handleToolCalls(outputs) {
     const canonicalUserMessage = getLatestUserUtterance();
     if (canonicalUserMessage) args.user_message = canonicalUserMessage;
 
-    document.getElementById('info-active-tool').textContent = formatToolName(item.name);
+    setActiveTool(formatToolName(item.name));
     addToolEntry('out', item.name, args.user_message || item.arguments);
 
     let outputPayload;
@@ -700,7 +728,7 @@ async function handleToolCalls(outputs) {
   }
 
   stopHoldSound();
-  document.getElementById('info-active-tool').textContent = '—';
+  setActiveTool('—');
   hideViz();
 
   if (toolCallActive) {
@@ -755,15 +783,16 @@ function finaliseText(wrap, text) {
 function clearTranscript() {
   const box = document.getElementById('transcript');
   box.innerHTML = '<p class="caption-placeholder" id="caption-placeholder">Live captions will appear here during your call.</p>';
-  document.getElementById('tool-entries').innerHTML = '';
-  document.getElementById('timeline-empty').style.display = '';
+  const toolEntries = byId('tool-entries');
+  if (toolEntries) toolEntries.innerHTML = '';
+  setDisplay('timeline-empty', '');
   msgCount = 0;
   toolCount = 0;
   sessionWorkOrder = '';
   sessionIntent = '';
-  document.getElementById('info-intent').textContent = '—';
-  document.getElementById('info-work-order').textContent = '—';
-  document.getElementById('info-active-tool').textContent = '—';
+  setText('info-intent', '—');
+  setText('info-work-order', '—');
+  setActiveTool('—');
   currentUserEl = null;
   currentAiEl = null;
   lastTranscript = '';
@@ -773,7 +802,7 @@ function clearTranscript() {
 
 function addToolEntry(dir, name, detail) {
   toolCount++;
-  document.getElementById('timeline-empty').style.display = 'none';
+  setDisplay('timeline-empty', 'none');
 
   const card = document.createElement('article');
   card.className = `timeline-card ${dir}`;
@@ -785,11 +814,11 @@ function addToolEntry(dir, name, detail) {
     `<div class="timeline-card-head"><strong>${esc(title)}</strong><time>${esc(ts)}</time></div>` +
     `<p><em>${esc(summary)}</em> — ${esc(String(detail).slice(0, 140))}</p>`;
 
-  document.getElementById('tool-entries').prepend(card);
-  document.getElementById('insight-panel').classList.add('open');
+  byId('tool-entries')?.prepend(card);
+  addClass('insight-panel', 'open');
 
   if (dir === 'out') {
-    document.getElementById('info-active-tool').textContent = title;
+    setActiveTool(title);
   }
 }
 
@@ -836,14 +865,16 @@ function initAuthUI() {
   badge.classList.toggle('prod', /prod/i.test(env));
 
   if (authContext.session) {
-    const sel = document.getElementById('agent-id');
-    sel.value = 'wwts';
-    sel.disabled = true;
+    const sel = byId('agent-id');
+    if (sel) {
+      sel.value = 'wwts';
+      sel.disabled = true;
+    }
   }
   updateAgentDisplay();
 }
 
-document.getElementById('agent-id')?.addEventListener('change', updateAgentDisplay);
+byId('agent-id')?.addEventListener('change', updateAgentDisplay);
 
 initAuthUI();
 

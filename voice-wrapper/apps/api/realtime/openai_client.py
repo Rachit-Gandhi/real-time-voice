@@ -34,6 +34,24 @@ _TOOL_DEFINITIONS: dict[str, dict[str, Any]] = {
             "required": ["user_message"],
         },
     },
+    "run_wwts": {
+        "type": "function",
+        "name": "run_wwts",
+        "description": (
+            "Route the user's exact utterance to the WWTS work order agent. "
+            "Use this for every WWTS voice-console user message."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "user_message": {
+                    "type": "string",
+                    "description": "The user's exact spoken words",
+                },
+            },
+            "required": ["user_message"],
+        },
+    },
 }
 
 
@@ -84,7 +102,7 @@ class OpenAIRealtimeClient:
         }
         if tool_defs:
             session_cfg["tools"] = tool_defs
-            session_cfg["tool_choice"] = "auto"
+            session_cfg["tool_choice"] = "required" if "run_wwts" in (tools or []) else "auto"
 
         payload: dict[str, Any] = {
             "expires_after": {

@@ -8,9 +8,10 @@ class ToolRouter:
         self._agent_invoke_fn = agent_invoke_fn
 
     async def dispatch(self, tool_name: str, args: dict) -> Any:
-        if tool_name == "run_agent":
+        if tool_name in {"run_agent", "run_wwts"}:
+            agent_id = "wwts" if tool_name == "run_wwts" else args.get("agent_id")
             result = self._agent_invoke_fn(
-                agent_id=args.get("agent_id"),
+                agent_id=agent_id,
                 user_message=args.get("user_message"),
                 session_id=args.get("session_id"),
                 user_id=args.get("user_id"),

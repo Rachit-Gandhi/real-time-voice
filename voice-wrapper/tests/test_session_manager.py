@@ -81,6 +81,15 @@ async def test_create_passes_tools_to_realtime_client():
 
 
 @pytest.mark.asyncio
+async def test_create_defaults_to_wwts_agent():
+    fake = FakeRealtimeClient()
+    mgr = SessionManager(realtime_client=fake)
+    session = await mgr.create(user_id="u1")
+    assert session["agent_id"] == "wwts"
+    assert fake.tools == ["run_wwts"]
+
+
+@pytest.mark.asyncio
 async def test_create_stores_context(mgr):
     ctx = {"wwts_session": 45270812, "env": "QA"}
     session = await mgr.create(agent_id="agent_one", user_id="dpscript", context=ctx)

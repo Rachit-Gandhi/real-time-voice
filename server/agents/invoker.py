@@ -21,6 +21,14 @@ def _get_wwts_invoke():
 
 
 class DirectAgentInvoker:
+    def __init__(self) -> None:
+        self._wwts_locks: dict[str, asyncio.Lock] = {}
+
+    def _wwts_lock(self, session_id: str) -> asyncio.Lock:
+        if session_id not in self._wwts_locks:
+            self._wwts_locks[session_id] = asyncio.Lock()
+        return self._wwts_locks[session_id]
+
     async def invoke(
         self,
         *,
@@ -53,14 +61,15 @@ class DirectAgentInvoker:
             return {**result, "speak": speak}
 
         if agent_id in ("wwts", "wwts_agent"):
-            WWTSInvokeRequest, wwts_invoke = _get_wwts_invoke()
-            req = WWTSInvokeRequest(
-                message=user_message,
-                thread_id=session_id,
-                user_id=user_id,
-                context=context or {},
-            )
-            result = await asyncio.to_thread(wwts_invoke, req)
+            async with self._wwts_lock(session_id):
+                WWTSInvokeRequest, wwts_invoke = _get_wwts_invoke()
+                req = WWTSInvokeRequest(
+                    message=user_message,
+                    thread_id=session_id,
+                    user_id=user_id,
+                    context=context or {},
+                )
+                result = await asyncio.to_thread(wwts_invoke, req)
             speak = result.get("speak") or result.get("answer", "")
             return {**result, "speak": speak}
 

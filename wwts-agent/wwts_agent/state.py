@@ -14,6 +14,10 @@ class WWTSState(TypedDict, total=False):
     # → executing_list | executing_get | executing_create → done
     stage: str
     intent: str | None    # list_wo | search_wo | get_wo | create_wo | ...
+    facts: dict           # canonical facts shared across flows
+    active_task: dict     # current task binding, e.g. kind/target_wo/dependencies
+    corrections: list     # user corrections applied across facts and legacy fields
+    artifacts: dict       # cached results grouped by task/current WO/search
 
     # Get WO detail
     wo_number: str | None

@@ -91,6 +91,35 @@ async def test_create_client_secret_includes_run_agent_tool(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_create_client_secret_includes_required_run_wwts_tool(monkeypatch):
+    import json
+
+    captured = {}
+
+    async def handler(request: httpx.Request) -> httpx.Response:
+        captured["body"] = json.loads(request.read())
+        return httpx.Response(200, json={"expires_at": 123, "value": "ek_test", "session": {}})
+
+    transport = httpx.MockTransport(handler)
+
+    class MockAsyncClient(httpx.AsyncClient):
+        def __init__(self, *args, **kwargs):
+            super().__init__(transport=transport)
+
+    monkeypatch.setattr(httpx, "AsyncClient", MockAsyncClient)
+    client = OpenAIRealtimeClient(Settings(openai_api_key="sk_test"))
+
+    await client.create_client_secret(instructions="Test.", tools=["run_wwts"])
+
+    session = captured["body"]["session"]
+    run_wwts = next(t for t in session["tools"] if t["name"] == "run_wwts")
+    assert session["tool_choice"] == "required"
+    assert run_wwts["type"] == "function"
+    assert list(run_wwts["parameters"]["properties"]) == ["user_message"]
+    assert run_wwts["parameters"]["required"] == ["user_message"]
+
+
+@pytest.mark.asyncio
 async def test_create_client_secret_no_tools_omits_tools_key(monkeypatch):
     import json
 

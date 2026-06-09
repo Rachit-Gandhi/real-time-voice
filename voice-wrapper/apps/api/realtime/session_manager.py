@@ -1,4 +1,5 @@
 """Session state management for voice sessions."""
+import asyncio
 import uuid
 from datetime import UTC, datetime
 
@@ -8,13 +9,14 @@ from apps.api.agents.registry import AgentRegistry
 class SessionManager:
     def __init__(self, *, realtime_client=None, registry: AgentRegistry | None = None) -> None:
         self._sessions: dict[str, dict] = {}
+        self._wwts_locks: dict[str, asyncio.Lock] = {}
         self._realtime_client = realtime_client
         self._registry = registry or AgentRegistry()
 
     async def create(
         self,
-        agent_id: str,
         user_id: str,
+        agent_id: str = "wwts",
         context: dict | None = None,
     ) -> dict:
         agent_config = self._registry.get(agent_id)
@@ -50,6 +52,12 @@ class SessionManager:
         }
         self._sessions[session_id] = session
         return session
+
+    def wwts_lock(self, session_id: str) -> asyncio.Lock:
+        self.get(session_id)
+        if session_id not in self._wwts_locks:
+            self._wwts_locks[session_id] = asyncio.Lock()
+        return self._wwts_locks[session_id]
 
     def get(self, session_id: str) -> dict:
         if session_id not in self._sessions:

@@ -13,6 +13,15 @@ def test_registry_get_agent_one():
     assert isinstance(config.tools, list)
 
 
+def test_registry_get_wwts_uses_run_wwts_tool():
+    from apps.api.agents.registry import AgentRegistry
+
+    registry = AgentRegistry()
+    config = registry.get("wwts")
+    assert config.tools == ["run_wwts"]
+    assert "run_wwts" in config.instructions
+
+
 def test_registry_get_nonexistent_raises():
     """registry.get('nonexistent') raises KeyError."""
     from apps.api.agents.registry import AgentRegistry

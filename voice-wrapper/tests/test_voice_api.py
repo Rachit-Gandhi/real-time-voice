@@ -42,7 +42,7 @@ def fake_app_state():
 
 
 def test_create_voice_session():
-    """POST /voice/session returns session_id, agent_id, and active status."""
+    """POST /voice/session returns session_id, WWTS agent_id, and active status."""
     from apps.api.main import app
 
     client = TestClient(app)
@@ -53,7 +53,7 @@ def test_create_voice_session():
     assert response.status_code == 200
     data = response.json()
     assert isinstance(data["session_id"], str) and data["session_id"] != ""
-    assert data["agent_id"] == "agent_one"
+    assert data["agent_id"] == "wwts"
     assert data["status"] == "active"
     assert data["client_secret"] == "ek_test"
 
@@ -93,7 +93,7 @@ def test_get_session_status():
     assert status_resp.status_code == 200
     data = status_resp.json()
     assert data["session_id"] == session_id
-    assert data["agent_id"] == "agent_one"
+    assert data["agent_id"] == "wwts"
     assert data["user_id"] == "user_456"
     assert data["status"] == "active"
     assert "started_at" in data
@@ -108,7 +108,45 @@ def test_get_session_status_not_found():
     assert resp.status_code == 404
 
 
-def test_tool_call_invokes_agent_one_adapter():
+def test_tool_call_invokes_wwts_adapter_with_session_context():
+    from apps.api.main import app
+
+    client = TestClient(app)
+    create_resp = client.post(
+        "/voice/session",
+        json={
+            "agent_id": "agent_one",
+            "user_id": "server_user",
+            "context": {"wwts_session": 45270812, "env": "QA"},
+        },
+    )
+    session_id = create_resp.json()["session_id"]
+
+    resp = client.post(
+        f"/voice/session/{session_id}/tool-call",
+        json={
+            "tool_name": "run_wwts",
+            "args": {
+                "user_message": "What is the refund policy?",
+                "agent_id": "agent_one",
+                "session_id": "spoofed_session",
+                "user_id": "spoofed_user",
+                "context": {"wwts_session": 99999999, "env": "PROD"},
+            },
+        },
+    )
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["answer"] == "answer: What is the refund policy?"
+    assert data["speak"] == "speak: What is the refund policy?"
+    assert data["agent_id"] == "wwts"
+    assert data["session_id"] == session_id
+    assert data["user_id"] == "server_user"
+    assert data["context"] == {"wwts_session": 45270812, "env": "QA"}
+
+
+def test_tool_call_accepts_run_agent_alias_for_wwts_session():
     from apps.api.main import app
 
     client = TestClient(app)
@@ -122,18 +160,33 @@ def test_tool_call_invokes_agent_one_adapter():
         f"/voice/session/{session_id}/tool-call",
         json={
             "tool_name": "run_agent",
-            "args": {
-                "user_message": "What is the refund policy?",
-                "context": {"website_id": "site_123"},
-            },
+            "args": {"user_message": "List my work orders"},
         },
     )
 
     assert resp.status_code == 200
     data = resp.json()
-    assert data["answer"] == "answer: What is the refund policy?"
-    assert data["speak"] == "speak: What is the refund policy?"
-    assert data["agent_id"] == "agent_one"
+    assert data["agent_id"] == "wwts"
     assert data["session_id"] == session_id
-    assert data["user_id"] == "user_456"
-    assert data["context"] == {"website_id": "site_123"}
+
+
+def test_tool_call_rejects_ended_session():
+    from apps.api.main import app
+
+    client = TestClient(app)
+    create_resp = client.post(
+        "/voice/session",
+        json={"agent_id": "wwts", "user_id": "user_456"},
+    )
+    session_id = create_resp.json()["session_id"]
+    client.post(f"/voice/session/{session_id}/end")
+
+    resp = client.post(
+        f"/voice/session/{session_id}/tool-call",
+        json={
+            "tool_name": "run_wwts",
+            "args": {"user_message": "List my work orders"},
+        },
+    )
+
+    assert resp.status_code == 409
