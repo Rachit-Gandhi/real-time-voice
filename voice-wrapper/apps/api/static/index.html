@@ -52,8 +52,7 @@
   <section class="call-stage" aria-label="Voice call">
     <div class="stage-center">
       <div id="avatar-wrap" class="avatar-wrap state-idle">
-        <div class="avatar-ring outer"></div>
-        <div class="avatar-ring inner"></div>
+        <div class="avatar-speak-ring" aria-hidden="true"></div>
         <div class="avatar-card">
           <svg class="avatar-icon" viewBox="0 0 64 64" fill="none" aria-hidden="true">
             <rect x="14" y="10" width="36" height="28" rx="10" fill="#EFF6FF" stroke="#2563EB" stroke-width="2"/>
@@ -64,14 +63,9 @@
             <path d="M8 26h6M50 26h6M32 6v4" stroke="#93C5FD" stroke-width="2" stroke-linecap="round"/>
           </svg>
         </div>
-        <div class="avatar-waveform" aria-hidden="true">
-          <div class="wave-bar"></div><div class="wave-bar"></div><div class="wave-bar"></div>
-          <div class="wave-bar"></div><div class="wave-bar"></div>
-        </div>
-        <canvas id="viz-canvas" width="100" height="24"></canvas>
       </div>
 
-      <p class="agent-status" id="agent-status">Idle</p>
+      <p class="agent-status" id="agent-status" aria-live="polite"></p>
       <h1 class="agent-name" id="agent-display-name">WWTS Support Agent</h1>
       <p class="agent-sub">Voice Assistant</p>
       <p class="call-timer idle" id="call-timer" aria-live="polite">Ready to connect</p>
@@ -123,8 +117,8 @@
     </div>
   </aside>
 
-  <button type="button" class="panel-toggle" id="panel-toggle" onclick="toggleInsightPanel()" title="Session details" aria-expanded="false">
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
+  <button type="button" class="panel-toggle" id="panel-toggle" onclick="toggleInsightPanel()" title="Toggle session panel" aria-expanded="false" aria-label="Toggle session panel">
+    <svg class="panel-chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>
   </button>
 </div>
 
@@ -135,6 +129,12 @@
     <button id="btn-send-text" class="btn-send-text" type="button" onclick="sendTextMessage()" disabled>Send</button>
   </div>
   <nav class="call-dock" id="call-dock" aria-label="Call controls">
+    <button type="button" id="btn-chat" class="dock-btn-start" onclick="startChat()">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true">
+        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+      </svg>
+      Start chat
+    </button>
     <button type="button" id="btn-start" class="dock-btn-start" onclick="startCall()">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true">
         <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
@@ -146,17 +146,6 @@
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
         <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
         <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
-      </svg>
-    </button>
-    <button type="button" id="btn-speaker" class="dock-btn dock-in-call-only" title="Speaker" aria-label="Speaker output">
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-        <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
-        <path d="M15.54 8.46a5 5 0 0 1 0 7.07M19.07 4.93a10 10 0 0 1 0 14.14"/>
-      </svg>
-    </button>
-    <button type="button" id="btn-settings" class="dock-btn dock-in-call-only" onclick="toggleInsightPanel()" title="Session details" aria-label="Settings">
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-        <circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
       </svg>
     </button>
     <button type="button" id="btn-stop" class="dock-btn-end dock-in-call-only" onclick="stopCall()" title="End call" aria-label="End call">

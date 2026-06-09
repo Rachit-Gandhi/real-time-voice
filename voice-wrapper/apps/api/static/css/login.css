@@ -5,7 +5,7 @@ body.login-page {
   justify-content: center;
   padding: 32px 20px;
   background:
-    radial-gradient(ellipse 80% 60% at 50% -20%, var(--blue-soft) 0%, transparent 55%),
+    radial-gradient(ellipse 80% 55% at 50% -15%, rgba(37, 99, 235, 0.05) 0%, transparent 50%),
     var(--bg);
 }
 

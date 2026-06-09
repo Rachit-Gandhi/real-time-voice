@@ -84,7 +84,7 @@ class SQLQueryEngine:
         if not api_key:
             raise RuntimeError("OPENAI_API_KEY is required for SQL generation.")
 
-        model = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
+        model = os.getenv("OPENAI_MODEL", "gpt-5.4-mini")
         from langchain_openai import ChatOpenAI
 
         llm = ChatOpenAI(model=model, temperature=0)

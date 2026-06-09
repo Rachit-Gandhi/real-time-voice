@@ -1,0 +1,37 @@
+{
+  "entries": [
+    {
+      "id": "laptop_no_power",
+      "title": "Laptop won't power on / no display",
+      "keywords": [
+        "won't turn on", "wont turn on", "not turning on", "no power", "dead",
+        "won't power on", "wont power on", "won't power", "wont power", "power on",
+        "won't boot", "wont boot", "not booting", "black screen", "blank screen",
+        "no display", "nothing happens", "power button", "won't start", "wont start",
+        "not starting", "no lights", "unresponsive", "won't come on"
+      ],
+      "steps": [
+        "Disconnect the charger and remove any USB devices, then hold the power button down for 30 seconds to drain residual (flea) power.",
+        "Reconnect the original Dell charger and confirm the charging LED lights up — a dead or wrong-wattage adapter is the most common cause.",
+        "Press the power button once and watch for keyboard backlight or fan noise; if you see activity but no image, connect an external monitor to rule out the display.",
+        "If there is still no power or no display, the unit likely needs on-site hardware service."
+      ]
+    },
+    {
+      "id": "laptop_overheating",
+      "title": "Laptop overheating / shutting down / loud fan",
+      "keywords": [
+        "overheat", "overheating", "too hot", "very hot", "getting hot", "heats up",
+        "shutting down", "shuts down", "random shutdown", "turns off by itself",
+        "fan", "loud fan", "fan noise", "noisy", "slow", "freezing", "freezes",
+        "lagging", "thermal", "burning"
+      ],
+      "steps": [
+        "Place the laptop on a hard flat surface so the bottom intake vents aren't blocked, and make sure the side/rear exhaust vents are clear.",
+        "Use compressed air to clear dust from the vents, then check that the fan spins up under load.",
+        "Open Task Manager (Ctrl+Shift+Esc) and end any single process pinned near 100% CPU; restart afterward to clear stuck processes.",
+        "If it still overheats or shuts down on its own, the cooling fan or thermal paste likely needs on-site service."
+      ]
+    }
+  ]
+}

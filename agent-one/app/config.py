@@ -11,7 +11,7 @@ WEBSITE_ALLOWED_DOMAIN: str = os.getenv("WEBSITE_ALLOWED_DOMAIN", "")
 INDEX_DB_PATH: str = os.getenv("INDEX_DB_PATH", "agent_one_index.db")
 DATABASE_URL: str = os.getenv("DATABASE_URL", "")
 OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "")
-OPENAI_MODEL: str = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
+OPENAI_MODEL: str = os.getenv("OPENAI_MODEL", "gpt-5.4-mini")
 
 # SMTP — leave blank to disable email
 SMTP_HOST: str = os.getenv("SMTP_HOST", "")

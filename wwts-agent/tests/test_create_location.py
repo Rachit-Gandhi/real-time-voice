@@ -54,7 +54,11 @@ def test_execute_asks_for_state_before_create_api_call(mock_create):
         {
             "stage": "executing_create",
             "user_id": "TESTUSER",
-            "context": {"wwts_session": 9999},
+            "context": {
+                "wwts_session": 9999,
+                "customer_codes": [{"code": "DELLQXS"}],
+                "authorized_functions": ["RequestForOpen"],
+            },
             "create_fields": _base_create_fields(
                 **{
                     "Customer City": "Round Rock",
@@ -77,7 +81,11 @@ def test_execute_normalizes_spoken_city_state_before_create_api_call(mock_create
         {
             "stage": "executing_create",
             "user_id": "TESTUSER",
-            "context": {"wwts_session": 9999},
+            "context": {
+                "wwts_session": 9999,
+                "customer_codes": [{"code": "DELLQXS"}],
+                "authorized_functions": ["RequestForOpen"],
+            },
             "create_fields": _base_create_fields(
                 **{
                     "Customer City": "Round Rock, Texas",

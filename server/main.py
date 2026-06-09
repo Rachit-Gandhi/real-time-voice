@@ -25,10 +25,22 @@ from app.routes.l1_support import router as l1_support_router
 
 from agents.invoker import DirectAgentInvoker
 from auth import router as auth_router
+from database import init_db
+
+if _WWTS_AGENT_DIR := str(_ROOT / "wwts-agent"):
+    if _WWTS_AGENT_DIR not in sys.path:
+        sys.path.append(_WWTS_AGENT_DIR)
+from routes.wwts_agent import router as wwts_router  # noqa: E402
 
 _STATIC = _ROOT / "voice-wrapper" / "apps" / "api" / "static"
 
 app = FastAPI(title="Real-Time Voice API")
+
+
+@app.on_event("startup")
+def _startup_db() -> None:
+    init_db()
+
 
 _settings = get_settings()
 _registry = AgentRegistry()
@@ -47,6 +59,7 @@ app.include_router(voice_router)
 app.include_router(agent_one_router)
 app.include_router(l1_support_router)
 app.include_router(auth_router)
+app.include_router(wwts_router)
 app.mount("/static", StaticFiles(directory=str(_STATIC)), name="static")
 
 

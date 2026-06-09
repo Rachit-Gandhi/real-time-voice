@@ -16,6 +16,9 @@
       rc: body.rc ?? parms.RC ?? 0,
       resultMsg: body.result_msg || parms.ResultMsg || '',
       customerCodes: body.customer_codes || [],
+      authorizedFunctions: body.authorized_functions || [],
+      userName: body.user_name || '',
+      userType: body.user_type || '',
       raw: body,
     };
   }

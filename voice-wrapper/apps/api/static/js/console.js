@@ -40,6 +40,9 @@ let _holdGain = null;
 let _holdTimeout = null;
 let sessionWorkOrder = '';
 let sessionIntent = '';
+let chatMode = false;
+let chatThreadId = null;
+let chatBusy = false;
 
 function friendlyError(raw) {
   const msg = String(raw || '');
@@ -70,16 +73,26 @@ function clearError() { /* toasts only */ }
 
 function setAvatarState(state) {
   const wrap = document.getElementById('avatar-wrap');
-  wrap.className = `avatar-wrap state-${state || 'idle'}`;
+  const statusEl = document.getElementById('agent-status');
   const labels = {
     idle: 'Idle',
     listening: 'Listening',
     speaking: 'Speaking',
     thinking: 'Thinking',
   };
-  const status = labels[state] || 'Idle';
-  document.getElementById('agent-status').textContent = status;
-  document.getElementById('info-agent-state').textContent = status;
+  document.getElementById('info-agent-state').textContent = labels[state] || 'Idle';
+
+  const visual = (state === 'speaking' || state === 'thinking') ? state : 'idle';
+  wrap.className = `avatar-wrap state-${visual}`;
+
+  statusEl.textContent = '';
+  statusEl.className = 'agent-status';
+  if (state === 'speaking') {
+    statusEl.textContent = 'Speaking';
+  } else if (state === 'thinking') {
+    statusEl.textContent = 'Thinking';
+    statusEl.classList.add('thinking');
+  }
 }
 
 function setCallUI(inCall) {
@@ -114,7 +127,6 @@ function toggleInsightPanel() {
   const panel = document.getElementById('insight-panel');
   const open = panel.classList.toggle('open');
   document.getElementById('panel-toggle').setAttribute('aria-expanded', String(open));
-  document.getElementById('panel-toggle').classList.toggle('shifted', open);
 }
 
 function toggleProfileMenu() {
@@ -206,27 +218,8 @@ function initViz(stream) {
   }
 }
 
-function drawViz() {
-  if (!analyser) return;
-  const canvas = document.getElementById('viz-canvas');
-  const ctx = canvas.getContext('2d');
-  const buf = new Uint8Array(analyser.frequencyBinCount);
-  analyser.getByteFrequencyData(buf);
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-  const barW = 3;
-  const gap = 2;
-  for (let i = 0; i < Math.min(12, buf.length); i++) {
-    const val = buf[i] / 255;
-    const h = Math.max(2, val * canvas.height);
-    ctx.fillStyle = `rgba(37, 99, 235, ${0.3 + val * 0.7})`;
-    ctx.fillRect(i * (barW + gap), canvas.height - h, barW, h);
-  }
-  vizAnimId = requestAnimationFrame(drawViz);
-}
-
 function startUserViz() {
   setAvatarState('listening');
-  if (analyser && !vizAnimId) drawViz();
 }
 
 function startAiViz() {
@@ -237,9 +230,7 @@ function startAiViz() {
 function hideViz() {
   if (vizAnimId) { cancelAnimationFrame(vizAnimId); vizAnimId = null; }
   if (!sessionId) setAvatarState('idle');
-  else if (!isAiResponding && !toolCallActive) setAvatarState('listening');
-  const canvas = document.getElementById('viz-canvas');
-  canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height);
+  else setAvatarState('listening');
 }
 
 function destroyViz() {
@@ -367,7 +358,104 @@ async function startCall() {
   }
 }
 
+function startChat() {
+  clearTranscript();
+  chatMode = true;
+  chatBusy = false;
+  chatThreadId = (window.crypto && crypto.randomUUID)
+    ? crypto.randomUUID()
+    : `chat-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  setStatus('connected');
+  setCallUI(true);
+  document.getElementById('call-dock').classList.add('chat-mode');
+  document.getElementById('btn-mute').style.display = 'none';
+  document.getElementById('call-timer').textContent = 'Chat session';
+  document.getElementById('text-input-field').disabled = false;
+  document.getElementById('btn-send-text').disabled = false;
+  document.getElementById('insight-panel').classList.add('open');
+  setAvatarState('idle');
+  // Let the backend agent open the conversation (greet + ask the caller's name).
+  postChat('hello', { renderUser: false });
+  document.getElementById('text-input-field').focus();
+}
+
+function applyAgentState(data) {
+  if (data.intent) {
+    sessionIntent = formatToolName(String(data.intent));
+    document.getElementById('info-intent').textContent = sessionIntent;
+  }
+  const wo = data.wo_number || data.created_wo_number;
+  if (wo) {
+    sessionWorkOrder = String(wo);
+    document.getElementById('info-work-order').textContent = sessionWorkOrder;
+  }
+  if (data.session_expired) {
+    showError('Your WWTS session has expired. Please sign out and log in again.');
+  }
+}
+
+async function postChat(text, { renderUser = true } = {}) {
+  if (!text || chatBusy) return;
+  if (renderUser) {
+    finaliseText(addMsg('user', ''), text);
+    detectWorkOrder(text);
+    detectIntent(text);
+  }
+  chatBusy = true;
+  setAvatarState('thinking');
+  const aiEl = addMsg('ai', '');
+  aiEl.querySelector('.body').textContent = '…';
+
+  try {
+    const res = await fetch('/agents/wwts/invoke', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        message: text,
+        thread_id: chatThreadId,
+        user_id: document.getElementById('user-id').value
+          || (authContext && authContext.userId) || '',
+        context: buildSessionContext(),
+      }),
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    finaliseText(aiEl, data.answer || data.speak || '(no response)');
+    applyAgentState(data);
+  } catch (err) {
+    finaliseText(aiEl, 'Sorry — I could not reach the assistant. Please try again.');
+    showError(err.message);
+  } finally {
+    chatBusy = false;
+    setAvatarState('idle');
+    document.getElementById('text-input-field').focus();
+  }
+}
+
+function sendChatTurn() {
+  const input = document.getElementById('text-input-field');
+  const text = input.value.trim();
+  if (!text || chatBusy) return;
+  input.value = '';
+  postChat(text, { renderUser: true });
+}
+
 function stopCall() {
+  if (chatMode) {
+    chatMode = false;
+    chatThreadId = null;
+    chatBusy = false;
+    document.getElementById('call-dock').classList.remove('chat-mode');
+    document.getElementById('btn-mute').style.display = '';
+    setStatus('disconnected');
+    setCallUI(false);
+    document.getElementById('text-input-field').disabled = true;
+    document.getElementById('btn-send-text').disabled = true;
+    setBtnEnabled('start', true);
+    setAvatarState('idle');
+    document.getElementById('info-active-tool').textContent = '—';
+    return;
+  }
   if (sessionId) {
     fetch(`/voice/session/${sessionId}/end`, { method: 'POST' }).catch(() => {});
   }
@@ -411,6 +499,7 @@ function toggleMute() {
 }
 
 function sendTextMessage() {
+  if (chatMode) { sendChatTurn(); return; }
   const input = document.getElementById('text-input-field');
   const text = input.value.trim();
   if (!text || !sessionId || !dc || dc.readyState !== 'open') return;
@@ -429,7 +518,7 @@ function sendTextMessage() {
 }
 
 document.getElementById('text-input-field').addEventListener('keydown', (e) => {
-  if (e.key === 'Enter' && sessionId) sendTextMessage();
+  if (e.key === 'Enter' && (sessionId || chatMode)) sendTextMessage();
 });
 
 function onDataChannelOpen() {
@@ -446,6 +535,13 @@ function onDataChannelOpen() {
       },
     },
   }));
+  // Greet on connect: seed an opening turn so the backend agent greets the
+  // caller and asks for their name before they have to say anything.
+  dc.send(JSON.stringify({
+    type: 'conversation.item.create',
+    item: { type: 'message', role: 'user', content: [{ type: 'input_text', text: 'hello' }] },
+  }));
+  dc.send(JSON.stringify({ type: 'response.create' }));
 }
 
 function handleEvent(event) {
@@ -540,6 +636,20 @@ function handleEvent(event) {
   }
 }
 
+function getLatestUserUtterance() {
+  if (lastTranscript && String(lastTranscript).trim()) return String(lastTranscript).trim();
+  if (currentUserEl) {
+    const live = currentUserEl.querySelector('.body')?.textContent?.trim();
+    if (live) return live;
+  }
+  const bubbles = document.querySelectorAll('.caption-line.user .body');
+  if (bubbles.length) {
+    const latest = bubbles[bubbles.length - 1]?.textContent?.trim();
+    if (latest) return latest;
+  }
+  return '';
+}
+
 async function handleToolCalls(outputs) {
   const calls = outputs.filter((item) => item.type === 'function_call');
   if (!calls.length) return;
@@ -551,7 +661,8 @@ async function handleToolCalls(outputs) {
   for (const item of calls) {
     let args = {};
     try { args = JSON.parse(item.arguments || '{}'); } catch {}
-    if (lastTranscript) args.user_message = lastTranscript;
+    const canonicalUserMessage = getLatestUserUtterance();
+    if (canonicalUserMessage) args.user_message = canonicalUserMessage;
 
     document.getElementById('info-active-tool').textContent = formatToolName(item.name);
     addToolEntry('out', item.name, args.user_message || item.arguments);
@@ -704,13 +815,16 @@ function buildSessionContext() {
     version: authContext.version,
     expire_days: authContext.expireDays,
     customer_codes: authContext.customerCodes || [],
+    authorized_functions: authContext.authorizedFunctions || [],
+    user_name: authContext.userName || '',
+    user_type: authContext.userType || '',
   };
 }
 
 function initAuthUI() {
   if (!authContext) return;
   document.getElementById('user-id').value = authContext.userId || '';
-  const userLabel = authContext.userId || 'User';
+  const userLabel = authContext.userName || authContext.userId || 'User';
   document.getElementById('auth-user').textContent = userLabel;
   document.getElementById('profile-initials').textContent =
     userLabel.slice(0, 2).toUpperCase();
@@ -740,6 +854,7 @@ function logout() {
 }
 
 window.startCall = startCall;
+window.startChat = startChat;
 window.stopCall = stopCall;
 window.toggleMute = toggleMute;
 window.sendTextMessage = sendTextMessage;

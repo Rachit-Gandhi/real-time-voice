@@ -1,11 +1,11 @@
 /* ARIA — light voice product tokens */
 :root {
   --white:       #FFFFFF;
-  --bg:          #FFFFFF;
+  --bg:          #F4F6F9;
   --surface:     #F8FAFC;
-  --card:        #F1F5F9;
+  --card:        #EEF2F6;
   --border:      #E2E8F0;
-  --border-soft: #F1F5F9;
+  --border-soft: #E8EDF2;
 
   --text:        #0F172A;
   --text-secondary: #475569;
