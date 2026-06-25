@@ -1,0 +1,88 @@
+{
+  "entries": [
+    {
+      "id": "faq_001",
+      "question": "How do I reset my password?",
+      "answer": "You can reset your password by visiting the login page and clicking 'Forgot Password'. Enter your email address and we'll send you a reset link within 2 minutes.",
+      "keywords": ["password", "reset", "forgot", "login", "access"],
+      "category": "account"
+    },
+    {
+      "id": "faq_002",
+      "question": "How do I update my billing information?",
+      "answer": "You can update your billing information by going to Account Settings > Billing. From there you can add or change your credit card, update your billing address, or view past invoices.",
+      "keywords": ["billing", "credit card", "payment method", "update billing", "card"],
+      "category": "billing"
+    },
+    {
+      "id": "faq_003",
+      "question": "What is your refund policy?",
+      "answer": "We offer a 30-day money-back guarantee on all plans. If you're not satisfied within the first 30 days, contact our support team and we'll process a full refund within 5-7 business days.",
+      "keywords": ["refund", "money back", "refund policy", "guarantee", "cancel refund"],
+      "category": "billing"
+    },
+    {
+      "id": "faq_004",
+      "question": "How long does delivery take?",
+      "answer": "Standard delivery takes 5-7 business days. Express delivery (2-3 business days) and overnight shipping options are also available at checkout. International orders may take 10-14 business days.",
+      "keywords": ["delivery", "shipping", "how long", "arrive", "dispatch", "estimated time"],
+      "category": "orders"
+    },
+    {
+      "id": "faq_005",
+      "question": "How do I cancel my subscription?",
+      "answer": "You can cancel your subscription at any time from Account Settings > Subscription > Cancel Plan. Your access will continue until the end of the current billing period. No cancellation fees apply.",
+      "keywords": ["cancel", "cancellation", "subscription", "stop", "end plan", "unsubscribe"],
+      "category": "billing"
+    },
+    {
+      "id": "faq_006",
+      "question": "How do I delete my account?",
+      "answer": "To permanently delete your account, go to Account Settings > Privacy > Delete Account. Please note that this action is irreversible and all your data will be permanently removed within 30 days.",
+      "keywords": ["delete account", "remove account", "close account", "permanent delete", "gdpr"],
+      "category": "account"
+    },
+    {
+      "id": "faq_007",
+      "question": "What plans and pricing do you offer?",
+      "answer": "We offer three plans: Basic ($9/month) for individuals, Pro ($29/month) for small teams up to 10 users, and Enterprise (custom pricing) for large organizations. All plans include a 14-day free trial.",
+      "keywords": ["plans", "pricing", "cost", "how much", "price", "subscription", "tiers", "upgrade"],
+      "category": "sales"
+    },
+    {
+      "id": "faq_008",
+      "question": "How do I contact support?",
+      "answer": "You can reach our support team via live chat on our website, by email at support@company.com, or by phone at 1-800-555-0100 during business hours. We typically respond within 2 hours during business hours.",
+      "keywords": ["contact", "support", "help", "reach", "phone", "email", "chat"],
+      "category": "general"
+    },
+    {
+      "id": "faq_009",
+      "question": "What are your business hours?",
+      "answer": "Our support team is available Monday to Friday, 9 AM to 6 PM Eastern Time. For urgent technical issues, we have 24/7 emergency support available for Pro and Enterprise customers.",
+      "keywords": ["business hours", "open", "hours", "availability", "when", "time", "schedule"],
+      "category": "general"
+    },
+    {
+      "id": "faq_010",
+      "question": "The application is not working or I'm getting an error.",
+      "answer": "If you're experiencing technical issues, first try clearing your browser cache and refreshing the page. If the problem persists, check our status page at status.company.com for any ongoing incidents. You can also contact our technical support team at tech@company.com.",
+      "keywords": ["not working", "error", "broken", "bug", "crash", "issue", "problem", "technical"],
+      "category": "technical"
+    },
+    {
+      "id": "faq_011",
+      "question": "Do you offer discounts or promotions?",
+      "answer": "Yes! We offer a 20% discount for annual subscriptions, a 15% discount for non-profit organizations, and special pricing for students and educators. Check our promotions page or sign up for our newsletter to get notified of limited-time offers.",
+      "keywords": ["discount", "promotion", "coupon", "offer", "deal", "promo", "annual", "save"],
+      "category": "sales"
+    },
+    {
+      "id": "faq_012",
+      "question": "How do I return a product?",
+      "answer": "To initiate a return, log into your account and go to Orders > Request Return within 30 days of delivery. Select the item(s) you'd like to return and choose your reason. We'll email you a prepaid return label within 24 hours. Refunds are processed within 5-7 business days after we receive the item.",
+      "keywords": ["return", "send back", "return policy", "exchange", "wrong item", "damaged"],
+      "category": "orders"
+    }
+  ]
+}

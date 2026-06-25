@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ARIA — Voice Assistant</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Source+Serif+4:opsz,wght@8..60,400;8..60,500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/css/design-system.css" />
+  <link rel="stylesheet" href="/static/css/base.css" />
+  <link rel="stylesheet" href="/static/css/console.css" />
+</head>
+<body class="console-page">
+
+<header class="app-header">
+  <div class="header-brand">
+    <div class="header-logo" aria-hidden="true">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+        <path d="M12 2a4 4 0 0 0-4 4v7a4 4 0 0 0 8 0V6a4 4 0 0 0-4-4z"/>
+        <path d="M19 11v1a7 7 0 0 1-14 0v-1"/>
+      </svg>
+    </div>
+    <div class="header-brand-text">
+      <strong>ARIA Voice Assistant</strong>
+      <span>Enterprise voice support</span>
+    </div>
+  </div>
+  <div class="header-right">
+    <div class="profile-menu" id="profile-menu">
+      <button type="button" class="profile-btn" id="profile-btn" aria-expanded="false" aria-haspopup="true">
+        <span class="profile-avatar" id="profile-initials">?</span>
+        <span id="auth-user">User</span>
+      </button>
+      <div class="profile-dropdown">
+        <a href="/console">Console</a>
+        <a href="/dashboard">Transcripts</a>
+        <label class="profile-switch">
+          <span>Hinglish</span>
+          <input type="checkbox" id="hinglish-toggle" onchange="setHinglish(this.checked)" />
+          <span class="switch-track" aria-hidden="true"><span class="switch-thumb"></span></span>
+        </label>
+        <button type="button" onclick="logout()">Sign out</button>
+      </div>
+    </div>
+  </div>
+</header>
+
+<div class="visually-hidden-fields" aria-hidden="true">
+  <input id="user-id" type="text" readonly />
+</div>
+
+<div class="app-body">
+  <section class="call-stage" aria-label="Voice call">
+    <div class="session-layout">
+      <div class="stage-center">
+        <div class="chat-header">
+          <div>
+            <p class="agent-status" id="agent-status" aria-live="polite"></p>
+            <h1 class="agent-name" id="agent-display-name">WWTS Support Agent</h1>
+            <p class="agent-sub">Voice Assistant</p>
+          </div>
+          <p class="call-timer idle" id="call-timer" aria-live="polite">Ready to connect</p>
+        </div>
+
+        <div id="transcript" class="live-transcript" aria-live="polite">
+          <p class="caption-placeholder" id="caption-placeholder">
+            Live captions will appear here during your call.
+          </p>
+        </div>
+
+        <div class="text-composer">
+          <label for="text-input-field" class="sr-only">Type a message</label>
+          <input id="text-input-field" type="text" placeholder="Type a message…" disabled />
+          <button id="btn-send-text" class="btn-send-text" type="button" onclick="sendTextMessage()" disabled>Send</button>
+        </div>
+      </div>
+
+      <aside class="voice-rail" aria-label="Voice bot">
+        <div id="avatar-wrap" class="avatar-wrap state-idle">
+          <div class="avatar-listen-ring ring-one" aria-hidden="true"></div>
+          <div class="avatar-listen-ring ring-two" aria-hidden="true"></div>
+          <div class="avatar-speak-ring" aria-hidden="true"></div>
+          <div class="avatar-card">
+            <svg class="avatar-icon" viewBox="0 0 64 64" fill="none" aria-hidden="true">
+              <rect x="14" y="10" width="36" height="28" rx="10" fill="#EFF6FF" stroke="#2563EB" stroke-width="2"/>
+              <circle cx="24" cy="22" r="3" fill="#2563EB"/>
+              <circle cx="40" cy="22" r="3" fill="#2563EB"/>
+              <path d="M26 30h12" stroke="#2563EB" stroke-width="2" stroke-linecap="round"/>
+              <path d="M22 38h20v8c0 4-4 6-10 6s-10-2-10-6v-8z" fill="#EFF6FF" stroke="#2563EB" stroke-width="2"/>
+              <path d="M8 26h6M50 26h6M32 6v4" stroke="#93C5FD" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+          </div>
+        </div>
+        <div class="voice-rail-copy">
+          <strong>ARIA</strong>
+          <span>Voice bot</span>
+        </div>
+        <div class="conn-status rail-conn" role="status" aria-live="polite">
+          <span id="status-dot" class="conn-dot disconnected"></span>
+          <span id="status-label">Disconnected</span>
+        </div>
+        <dl class="voice-state-list">
+          <div>
+            <dt>State</dt>
+            <dd id="voice-rail-state">Idle</dd>
+          </div>
+        </dl>
+      </aside>
+    </div>
+  </section>
+
+  <aside id="insight-panel" class="insight-panel" aria-label="Session details" hidden>
+    <div class="panel-inner">
+      <div class="panel-section panel-agent-pick" id="pre-call-settings">
+        <label for="agent-id">Support agent</label>
+        <select id="agent-id">
+          <option value="wwts">WWTS Support</option>
+          <option value="agent_one">Agent One</option>
+          <option value="l1_support">L1 Support</option>
+        </select>
+      </div>
+      <div class="panel-section">
+        <h3>Session information</h3>
+        <dl class="info-grid">
+          <div class="info-row">
+            <dt>Current intent</dt>
+            <dd id="info-intent">—</dd>
+          </div>
+          <div class="info-row">
+            <dt>Work order</dt>
+            <dd id="info-work-order">—</dd>
+          </div>
+          <div class="info-row">
+            <dt>Agent state</dt>
+            <dd id="info-agent-state">Idle</dd>
+          </div>
+          <div class="info-row">
+            <dt>Active tool</dt>
+            <dd id="info-active-tool">—</dd>
+          </div>
+        </dl>
+      </div>
+      <div class="panel-section">
+        <h3>Recent actions</h3>
+        <div id="tool-entries" class="timeline"></div>
+        <p id="timeline-empty" class="caption-placeholder" style="padding:12px 0;font-size:13px;">No actions yet</p>
+      </div>
+    </div>
+  </aside>
+</div>
+
+<div class="call-dock-wrap">
+  <nav class="call-dock" id="call-dock" aria-label="Call controls">
+    <button type="button" id="btn-chat" class="dock-btn-start" onclick="startChat()">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true">
+        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+      </svg>
+      Start chat
+    </button>
+    <button type="button" id="btn-start" class="dock-btn-start" onclick="startCall()">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true">
+        <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+        <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+      </svg>
+      Start call
+    </button>
+    <button type="button" id="btn-mute" class="dock-btn dock-in-call-only" onclick="toggleMute()" title="Mute" aria-label="Mute microphone">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+        <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+        <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+      </svg>
+    </button>
+    <button type="button" id="btn-stop" class="dock-btn-end dock-in-call-only" onclick="stopCall()" title="End call" aria-label="End call">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>
+    </button>
+  </nav>
+</div>
+
+<div id="toast-root" aria-live="polite"></div>
+<audio id="remote-audio" autoplay playsinline></audio>
+
+<script src="/static/auth.js"></script>
+<script src="/static/js/console.js"></script>
+</body>
+</html>

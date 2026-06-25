@@ -1,0 +1,45 @@
+/* ARIA — light voice product tokens */
+:root {
+  --white:       #FFFFFF;
+  --bg:          #F4F6F9;
+  --surface:     #F8FAFC;
+  --card:        #EEF2F6;
+  --border:      #E2E8F0;
+  --border-soft: #E8EDF2;
+
+  --text:        #0F172A;
+  --text-secondary: #475569;
+  --muted:       #94A3B8;
+
+  --blue:        #2563EB;
+  --blue-soft:   #EFF6FF;
+  --blue-glow:   rgba(37, 99, 235, 0.25);
+
+  --green:       #22C55E;
+  --green-soft:  #F0FDF4;
+  --amber:       #F59E0B;
+  --amber-soft:  #FFFBEB;
+  --red:         #EF4444;
+  --red-soft:    #FEF2F2;
+
+  --radius-sm:   12px;
+  --radius:      16px;
+  --radius-lg:   20px;
+  --radius-xl:   24px;
+  --radius-full: 999px;
+
+  --shadow-xs:   0 1px 2px rgba(15, 23, 42, 0.04);
+  --shadow-sm:   0 4px 12px rgba(15, 23, 42, 0.06);
+  --shadow-md:   0 8px 24px rgba(15, 23, 42, 0.08);
+  --shadow-dock: 0 12px 40px rgba(15, 23, 42, 0.12);
+
+  --font-display: 'Plus Jakarta Sans', system-ui, sans-serif;
+  --font-body:    'Plus Jakarta Sans', system-ui, sans-serif;
+  --font-caption: 'Source Serif 4', Georgia, serif;
+
+  --header-h:    64px;
+  --dock-h:      88px;
+  --panel-w:     320px;
+
+  --ease:        cubic-bezier(0.22, 1, 0.36, 1);
+}

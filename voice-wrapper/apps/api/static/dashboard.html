@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ARIA — Call Transcripts</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Source+Serif+4:opsz,wght@8..60,400;8..60,500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/css/design-system.css" />
+  <link rel="stylesheet" href="/static/css/base.css" />
+  <link rel="stylesheet" href="/static/css/console.css" />
+  <link rel="stylesheet" href="/static/css/dashboard.css" />
+</head>
+<body class="console-page">
+
+<header class="app-header">
+  <div class="header-brand">
+    <div class="header-logo" aria-hidden="true">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+        <path d="M12 2a4 4 0 0 0-4 4v7a4 4 0 0 0 8 0V6a4 4 0 0 0-4-4z"/>
+        <path d="M19 11v1a7 7 0 0 1-14 0v-1"/>
+      </svg>
+    </div>
+    <div class="header-brand-text">
+      <strong>Call Transcripts</strong>
+      <span>Review previous conversations</span>
+    </div>
+  </div>
+  <div class="header-right">
+    <div class="profile-menu" id="profile-menu">
+      <button type="button" class="profile-btn" id="profile-btn" aria-expanded="false" aria-haspopup="true">
+        <span class="profile-avatar" id="profile-initials">?</span>
+        <span id="auth-user">User</span>
+      </button>
+      <div class="profile-dropdown">
+        <a href="/console">Console</a>
+        <a href="/dashboard">Transcripts</a>
+        <button type="button" onclick="logout()">Sign out</button>
+      </div>
+    </div>
+  </div>
+</header>
+
+<div class="visually-hidden-fields" aria-hidden="true">
+  <input id="user-id" type="text" readonly />
+</div>
+
+<main class="dash-body">
+  <section class="dash-list-pane" aria-label="Saved transcripts">
+    <div class="dash-list-head">
+      <h1>Transcripts</h1>
+      <div class="dash-controls">
+        <label class="dash-scope">
+          <input type="checkbox" id="scope-all" />
+          <span>All users</span>
+        </label>
+        <button type="button" id="btn-refresh" class="dash-btn-ghost" onclick="loadTranscripts()">Refresh</button>
+      </div>
+    </div>
+    <div id="transcript-list" class="dash-list"></div>
+    <p id="list-empty" class="dash-empty" hidden>No saved transcripts yet. Finish a call or chat to save one.</p>
+  </section>
+
+  <section class="dash-detail-pane" aria-label="Transcript detail">
+    <div id="detail-empty" class="dash-detail-empty">
+      <div class="dash-detail-empty-icon" aria-hidden="true">
+        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+        </svg>
+      </div>
+      <p>Select a transcript to read it.</p>
+    </div>
+    <div id="detail" class="dash-detail" hidden>
+      <div class="dash-detail-head">
+        <div>
+          <h2 id="detail-title">Conversation</h2>
+          <p id="detail-meta" class="dash-detail-meta"></p>
+        </div>
+        <button type="button" id="btn-delete" class="dash-btn-danger" onclick="deleteCurrent()">Delete</button>
+      </div>
+      <div id="detail-thread" class="dash-thread"></div>
+    </div>
+  </section>
+</main>
+
+<div id="toast-root" aria-live="polite"></div>
+
+<script src="/static/auth.js"></script>
+<script src="/static/js/dashboard.js"></script>
+</body>
+</html>

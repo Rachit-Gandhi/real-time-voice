@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sign in — ARIA Voice Assistant</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Source+Serif+4:opsz,wght@8..60,400;8..60,500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/css/design-system.css" />
+  <link rel="stylesheet" href="/static/css/base.css" />
+  <link rel="stylesheet" href="/static/css/login.css" />
+</head>
+<body class="login-page">
+  <div class="login-card">
+    <div class="login-logo">
+      <div class="login-logo-mark" aria-hidden="true">
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+          <path d="M12 2a4 4 0 0 0-4 4v7a4 4 0 0 0 8 0V6a4 4 0 0 0-4-4z"/>
+          <path d="M19 11v1a7 7 0 0 1-14 0v-1"/>
+          <path d="M12 18v3"/>
+        </svg>
+      </div>
+      <div>
+        <h1>ARIA Voice Assistant</h1>
+        <p>Worldwide TechServices</p>
+      </div>
+    </div>
+    <p class="login-intro">Sign in to start a secure voice session with your support agent.</p>
+    <form id="login-form" class="login-form" autocomplete="on">
+      <div class="field">
+        <label for="user-id">User ID</label>
+        <input id="user-id" name="user_id" type="text" autocomplete="username" required placeholder="Enter your user ID" />
+      </div>
+      <div class="field">
+        <label for="password">Password</label>
+        <input id="password" name="password" type="password" autocomplete="current-password" required placeholder="Enter your password" />
+      </div>
+      <div id="error-msg" class="login-error" role="alert"></div>
+      <button class="btn-sign-in" id="btn-login" type="submit">Sign in</button>
+    </form>
+    <div class="login-footer">WWTS · Version 7.19</div>
+  </div>
+
+  <script src="/static/auth.js"></script>
+  <script>
+    'use strict';
+    if (WwtsAuth.getAuthContext()) window.location.replace('/console');
+
+    const form = document.getElementById('login-form');
+    const errorEl = document.getElementById('error-msg');
+    const btnLogin = document.getElementById('btn-login');
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      errorEl.classList.remove('visible');
+      errorEl.textContent = '';
+      btnLogin.disabled = true;
+      btnLogin.classList.add('loading');
+      btnLogin.textContent = 'Signing in…';
+
+      try {
+        const resp = await fetch('/gtaccess/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            user_id: document.getElementById('user-id').value.trim(),
+            password: document.getElementById('password').value,
+          }),
+        });
+        const body = await resp.json().catch(() => ({}));
+        if (!resp.ok) {
+          const detail = body.detail;
+          const msg = typeof detail === 'string' ? detail
+            : Array.isArray(detail) ? detail.map((d) => d.msg || d).join(', ')
+            : 'We couldn’t sign you in. Please check your credentials.';
+          throw new Error(msg);
+        }
+        if (!body.success || body.rc !== 0) {
+          throw new Error(body.result_msg || 'Sign in failed. Please try again.');
+        }
+        WwtsAuth.setAuthContext(WwtsAuth.parseLoginResponse(body));
+        window.location.replace('/console');
+      } catch (err) {
+        errorEl.textContent = err.message || 'Sign in failed. Please try again.';
+        errorEl.classList.add('visible');
+      } finally {
+        btnLogin.disabled = false;
+        btnLogin.classList.remove('loading');
+        btnLogin.textContent = 'Sign in';
+      }
+    });
+  </script>
+</body>
+</html>

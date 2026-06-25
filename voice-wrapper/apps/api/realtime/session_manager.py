@@ -1,0 +1,102 @@
+"""Session state management for voice sessions."""
+import asyncio
+import uuid
+from datetime import UTC, datetime
+
+from apps.api.agents.registry import AgentRegistry
+
+_HINGLISH_DIRECTIVE = (
+    "LANGUAGE: Always respond in Hinglish — the casual Hindi-English mix — written "
+    "in Roman/Latin script (never Devanagari). The caller speaks and types in "
+    "romanised Hinglish too, so expect Roman-script Hindi-English input. The 'speak' "
+    "field returned by the tool is ALREADY in romanised Hinglish: read it back "
+    "verbatim and never translate it to English or write it in Devanagari.\n"
+    "ACCENT: Speak with a natural Indian English accent and intonation — the way a "
+    "North-Indian customer-support agent speaks Hinglish on a call. Do NOT use an "
+    "American accent or American intonation."
+)
+
+
+def _apply_hinglish(instructions: str) -> str:
+    """Override the agent's English-only language rule with a Hinglish one."""
+    english_line = "LANGUAGE: Always respond in English, regardless of the language the user speaks."
+    if english_line in instructions:
+        return instructions.replace(english_line, _HINGLISH_DIRECTIVE)
+    return f"{_HINGLISH_DIRECTIVE}\n\n{instructions}"
+
+
+class SessionManager:
+    def __init__(self, *, realtime_client=None, registry: AgentRegistry | None = None) -> None:
+        self._sessions: dict[str, dict] = {}
+        self._wwts_locks: dict[str, asyncio.Lock] = {}
+        self._realtime_client = realtime_client
+        self._registry = registry or AgentRegistry()
+
+    async def create(
+        self,
+        user_id: str,
+        agent_id: str = "wwts",
+        context: dict | None = None,
+        hinglish: bool = False,
+    ) -> dict:
+        agent_config = self._registry.get(agent_id)
+        instructions = _apply_hinglish(agent_config.instructions) if hinglish else agent_config.instructions
+        realtime_session = None
+        client_secret = None
+        if self._realtime_client is not None:
+            realtime_session = await self._realtime_client.create_client_secret(
+                instructions=instructions,
+                tools=agent_config.tools,
+            )
+            # GA client_secrets returns client_secret as string or {value, expires_at}
+            cs = realtime_session.get("client_secret")
+            if isinstance(cs, dict):
+                client_secret = cs.get("value")
+            elif isinstance(cs, str):
+                client_secret = cs
+            else:
+                client_secret = realtime_session.get("value")
+
+        session_id = str(uuid.uuid4())
+        session = {
+            "session_id": session_id,
+            "agent_id": agent_id,
+            "user_id": user_id,
+            "context": context or {},
+            "status": "active",
+            "started_at": datetime.now(UTC).isoformat(),
+            "last_transcript": None,
+            "transcript": [],
+            "active_tool_call": None,
+            "realtime": realtime_session,
+            "client_secret": client_secret,
+        }
+        self._sessions[session_id] = session
+        return session
+
+    def wwts_lock(self, session_id: str) -> asyncio.Lock:
+        self.get(session_id)
+        if session_id not in self._wwts_locks:
+            self._wwts_locks[session_id] = asyncio.Lock()
+        return self._wwts_locks[session_id]
+
+    def get(self, session_id: str) -> dict:
+        if session_id not in self._sessions:
+            raise KeyError(f"Session '{session_id}' not found")
+        return self._sessions[session_id]
+
+    def end(self, session_id: str) -> dict:
+        session = self.get(session_id)
+        session["status"] = "ended"
+        return {"session_id": session_id, "status": "ended"}
+
+    def update_transcript(self, session_id: str, transcript: str) -> None:
+        session = self.get(session_id)
+        session["last_transcript"] = transcript
+
+    def add_turn(self, session_id: str, user_message: str, agent_response: str) -> None:
+        session = self.get(session_id)
+        ts = datetime.now(UTC).isoformat()
+        session["last_transcript"] = user_message
+        session["transcript"].append({"role": "user", "text": user_message, "ts": ts})
+        session["transcript"].append({"role": "assistant", "text": agent_response, "ts": ts})
